@@ -1,0 +1,192 @@
+function schiz
+% If you were able to simulate policy gradient on this task, 
+% and show that (a) learning rate determines divergence from 
+% the optimal trade-off curve, and (b) the schizophrenic data 
+% can be captured by assuming a different value of beta, but not
+% necessarily a difference in learning rate, then I think I would 
+% be able to respond to the remaining reviewer comments (I've already dealt with a good number of them). 
+
+
+end 
+
+
+function data = task(S,R,beta)
+
+   % Construct reward-complexity curve for Collins et al. (2014) data.`
+    
+    if nargin < 1
+        data = load_data;
+    end
+    
+    beta = linspace(0.1,15,50);
+    
+    % run Blahut-Arimoto
+    for s = 1:length(data)
+        B = unique(data(s).learningblock);
+        setsize = zeros(length(B),1);
+        R_data =zeros(length(B),1);
+        V_data =zeros(length(B),1);
+        for b = 1:length(B)
+            ix = data(s).learningblock==B(b);
+            state = data(s).state(ix);
+            c = data(s).corchoice(ix);
+            action = data(s).action(ix);
+            R_data(b) = mutual_information(state,action,0.1);
+            V_data(b) = mean(data(s).reward(ix));
+            
+            S = unique(state);
+            Q = zeros(length(S),3);
+            Ps = zeros(1,length(S));
+            for i = 1:length(S)
+                ii = state==S(i);
+                Ps(i) = mean(ii);
+                a = c(ii); a = a(1);
+                Q(i,a) = 1;
+            end
+            
+            [R(b,:),V(b,:)] = blahut_arimoto(Ps,Q,beta);
+            
+            setsize(b) = length(S)-1;
+            
+        end
+        
+        for c = 1:max(setsize)
+            results.R(s,:,c) = nanmean(R(setsize==c,:));
+            results.V(s,:,c) = nanmean(V(setsize==c,:));
+            results.R_data(s,c) = nanmean(R_data(setsize==c));
+            results.V_data(s,c) = nanmean(V_data(setsize==c));
+        end
+        
+        clear R V
+        
+    end
+    
+%% init
+% initialize variables
+nS = numel(unique(S)); nA = 2;        % #states x #actions
+theta = zeros(1,nA);   % policy weights
+V = zeros(nS,1);         % expected value
+Q = zeros(nS,nA);        % expected value
+w = zeros(nS,1);         % value weights
+
+% learning rates
+alpha_w = 0.1;          % value weight learning rate
+alpha_V = 0.1;          % value learning rate
+alpha_Q = 0.1;          % Q learning rate
+alpha_t= 0.1;           % policy learning rate
+s = 1;
+num = 10;  % how many trials to asses perseveration
+ecost = 0;
+%beta =1;               % trade-off parameter (lower means less capacity, higher means more)
+
+data.hitg = NaN(1,length(S)); data.hitng = NaN(1,length(S));
+%% loop through stimuli
+for t = 1:length(S)
+    s0 = s;
+    s = S(t);
+    
+    phi(1,:) = [V(s) Q(s,1)-Q(s,2)]; % A = Go, Q(Go - NoGo)
+    phi(2,:) = [-V(s) Q(s,2)-Q(s,1)]; % A = NoGo, Q(NoGo - Go)
+    mu = theta*phi';
+    
+    p_a = 1./(1+exp(-mu));     % action selection
+    
+    if rand < p_a(1)
+        %s
+        a = 1;   % go
+    else
+        %s
+        a = 2;   % no-go
+    end
+    
+    %a = (rand < p_a(1))+1;     % sample action (go: a = 1, nogo: a = 2)
+    A(t) = a;
+    r = rand < R(s,a);
+    
+    % value update
+    V0 = V;
+    V(s) = V(s)+alpha_V*(r-V(s));
+    
+    Q0 = Q;
+    Q(s,a) = Q(s,a)+alpha_Q*(r-Q(s,a));
+    
+    
+    %pa(1) = sum(A==1)/t; pa(2) = sum(A==2)/t;             % marginal action distribution
+    %pa = pa+0.01; pa = pa./sum(pa);
+    
+    
+    %     if t>num
+    %         pa(1) = sum(A(t-num:t)==1)/num; pa(2) = sum(A(t-num:t)==2)/num;             % marginal action distribution
+    %
+    %         pa = pa+0.01; pa = pa./sum(pa);
+    %     else
+    pa(1) = sum(A==1)/t; pa(2) = sum(A==2)/t;             % marginal action distribution
+    pa1 = pa+0.01; pa = pa./sum(pa);
+    for i = 1:size(R,1)
+        ps(i) = sum(S(1:t)==i)/t;
+    end
+    %pa(1) = sum(ps.*p_a(1));
+    %pa(2) = sum(ps.*p_a(2));
+    %end
+    
+    cost = log(p_a./pa);   %if p_a and pa are pretty similar, log(1) = 0 (low cost)
+    cost = cost(a);                               % policy cost for that state-action pair
+    ecost = 0.001*(cost-ecost);
+    
+    rpe = r + 0.98*V(s) - V0(s0) - ((1./beta)*ecost);                           % TD error
+    
+    % policy update
+    pgrad = phi(a,:) - sum(phi.*p_a');              % policy gradient
+    theta = theta + alpha_t*rpe*pgrad;         % policy weight update
+    
+    
+    % go-bias
+    if size(R,1) == 2
+        if s == 1
+            if a == 1 % go to win -- hit
+                data.hitg(t) = 1;
+            else
+                data.hitg(t) = 0;
+            end
+        elseif s == 2
+            if a == 2 % no-go to win  -- hit
+                data.hitng(t) = 1;
+            else
+                data.hitng(t) = 0;
+            end
+        end
+    elseif size(R,1) == 4
+        if s <=2
+            if a == 1 % go to win -- hit
+                data.hitg(t) = 1;
+            else
+                data.hitg(t) = 0;
+            end
+        elseif s >= 3
+            if a == 2 % no-go to win  -- hit
+                data.hitng(t) = 1;
+            else
+                data.hitng(t) = 0;
+            end
+        end
+        
+    end
+    
+    % store results
+    data.a(t) = a;
+    data.r(t) = r;
+    %data.w(t,:) = w;
+    data.rpe(t) = rpe;
+    data.theta(t,:) = theta;
+    data.phi(:,:,t) = phi;
+    data.rpe(t) = rpe;
+    data.V(t,:) = V;
+    data.Q(:,:,t) = Q;
+    data.cost(t) = ecost;
+    
+end
+data.hitg(isnan(data.hitg)) = [];
+data.hitng(isnan(data.hitng)) = [];
+data.gobias = movmean(movmean(data.hitg,5)-movmean(data.hitng,5),5);
+
+end
