@@ -92,3 +92,71 @@ end
 
 [r,p] = corr([results.V_data(:,1); results.V_data(:,2)],[Vd2(:,1); Vd2(:,2)])
 [r,p] = corr([results.R_data(:,1); results.R_data(:,2)],abs([results.bias(:,1); results.bias(:,2)]))
+
+end
+
+function [R,V,Pa] = blahut_arimoto(Ps,Q,b)
+    
+    % Blahut-Arimoto algorithm applied to the reward-complexity trade-off.
+    %
+    % USAGE: [R,V,Pa] = blahut_arimoto(Ps,Q,[b])
+    %
+    % INPUTS:
+    %   Ps - [1 x S] state probabilities, where S is the number of states
+    %   Q - [S x A] expected reward, where A is the number of actions
+    %   b (optional) - vector of trade-off parameters. Default: linspace(0.1,15,30)
+    %
+    % OUTPUTS:
+    %   R - [K x 1] channel capacity values, where K is the length of b
+    %   V - [K x 1] average reward values
+    %   Pa - [K x A] marginal action policy
+    %
+    % Sam Gershman, Jan 2020
+    
+    A = size(Q,2);
+    nIter = 50;
+    if nargin < 3; b = linspace(0.1,15,30); end
+    R = zeros(length(b),1); V = zeros(length(b),1); Pa = zeros(length(b),A);
+    
+    for j = 1:length(b)
+        F = b(j).*Q;
+        v0 = mean(Q(:));
+        q = ones(1,A)./A;
+        for i = 1:nIter
+            logP = log(q) + F;
+            Z = logsumexp(logP,2);
+            Psa = exp(logP - Z);
+            q = Ps*Psa;
+            v = sum(Ps*(Psa.*Q));
+            if abs(v-v0) < 0.001; break; else v0 = v; end
+        end
+        Pa(j,:) = q;
+        V(j) = v;
+        R(j) = b(j)*v - Ps*Z;
+    end
+end
+
+function I = mutual_information(state,action,alpha)
+    
+    % Hutter estimator of mutual information.
+    %
+    % USAGE: I = mutual_information(state,action,[alpha])
+    
+    uS = unique(state);
+    uA = unique(action);
+    
+    N = zeros(length(uS),length(uA));
+    if nargin < 3; alpha = 1/numel(N); end % Perks (1947) prior
+    
+    for x = 1:length(uS)
+        for y = 1:length(uA)
+            N(x,y) = alpha + sum(state==uS(x) & action==uA(y));
+        end
+    end
+    
+    n = sum(N(:));
+    nA = sum(N);
+    nS = sum(N,2);
+    P = psi(N+1) - psi(nA+1) - psi(nS+1) + psi(n+1);
+    I = sum(sum(N.*P))/n;
+end

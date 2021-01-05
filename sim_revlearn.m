@@ -1,4 +1,4 @@
-function rev_learning
+function sim_revlearn
 %% reversal learning
 
 agent.lrate_V = 0.8;

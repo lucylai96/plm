@@ -193,9 +193,9 @@ switch fig
         %      1(L)  2(R)
         % 1(A)  1     0
         % 2(B)  0     1
-        agent.lrate_V = 0.1;
-        agent.lrate_p = 0.01;
-        agent.lrate_theta = 0.1;
+        agent.lrate_V = 0.3;
+        agent.lrate_p = 0.02;
+        agent.lrate_theta = 0.3;
         beta = [0.1 0.2 0.5 0.8 1 2]; % capacity constraint
         figure; hold on;
         for i = 1:length(beta)
@@ -232,10 +232,8 @@ switch fig
         figure; hold on;
         
         for i = 1:length(beta)
-            rev = length(simdata(i).state)/2;
-            subplot(1,length(beta),i); hold on;
-            bar([simdata(i).pa(rev,:); simdata(i).pa(end,:)])
-            bar([sum(simdata(i).action(1:rev)==1)/rev; sum(simdata(i).action(rev:end)==1)/rev])
+        subplot(1,length(beta),i); hold on;
+            bar(sum(simdata(i).action(1:length(simdata(i).state)/2)==1)/; simdata(i).pa(end,:)])
             title(strcat('\beta=',num2str(beta(i))))
         end
         
