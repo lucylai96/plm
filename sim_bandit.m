@@ -1,7 +1,7 @@
 function simdata = sim_bandit(agent)
-% contextual bandits
 
-rng(1)
+rng(3)
+% contextual bandits
 
 nS = 2;   % # state features
 nA = 2;   % # actions
@@ -13,7 +13,7 @@ p = ones(1,nA)/nA;                    % marginal action probabilities
 %R = [0.8 0.8; 0.2 0.2];
 R = [1 0; 1 0];
 state = 1:2;                     % discretized indices of stimuli
-state = repmat(state, 1, 50);   % stim repeats, there will be rep x 2 trials
+state = repmat(state, 1, 100);   % stim repeats, there will be rep x 2 trials
 %state = state(randperm(length(state)));
 
 % 100 trials
@@ -63,7 +63,11 @@ logpolicy = d - logsumexp(d,2);
 policy = exp(logpolicy);    % softmax
 simdata.pas(:,:,2) = policy;
 
-pa(:,:,1) = simdata.pa(length(state)/2,:);
+rev = length(state)/2;
+pa(:,:,1) = simdata.pa(rev,:);
 pa(:,:,2) = simdata.pa(end,:);
-simdata.KL = nansum(simdata.pas.*log(simdata.pas./pa),2); % KL div for each state
+simdata.KL = squeeze(nansum(simdata.pas.*log(simdata.pas./pa),2))'; % KL div for each state (row), before and after reversal (column)
+simdata.avgrw(:,1) = [sum(simdata.state(1:rev-1)==1 & simdata.reward(1:rev-1)==1); sum(simdata.state(1:rev-1)==2 & simdata.reward(1:rev-1)==1)]/length(simdata.state(1:rev-1)==1); % reward after reversal
+simdata.avgrw(:,2) = [sum(simdata.state(rev:end)==1 & simdata.reward(rev:end)==1); sum(simdata.state(rev:end)==2 & simdata.reward(rev:end)==1)]/length(simdata.state(1:rev-1)==1); % reward after reversal
+%[simdata.state;simdata.action;simdata.reward]
 end

@@ -1,6 +1,4 @@
 function simdata = sim_statechunk(agent)
-
-rng(1)
 % state chunking
 
 nS = 13;  % # state features
@@ -26,7 +24,7 @@ while e <= nEp
     r = 0;
     t = 1;
     endEp = 0;
-    while t<10 % used to be while you haven't gotten reward
+    while t<15 % used to be while you haven't gotten reward
         
         % features
         phi0 = phi;
@@ -56,12 +54,12 @@ while e <= nEp
         
         % reward?
         if new_s > 6 && endEp == 0 % goal states
-            r = 2;
+            r = 1;
             endEp = 1;
         %elseif loop == 1
         %    r = 1;
-        elseif s > 3 && s < 7
-            r = 1;
+        elseif s > 3 & s < 6
+        %    r = 1;
         else                       % not goal state or absorbing state reached
             r = 0;
         end
