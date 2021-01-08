@@ -14,6 +14,7 @@ switch c
         map = map(3:end,:);
         
 end
+
 %set(0, 'DefaultAxesColorOrder', map(3:end,:))
 %set(gca,'ColorOrder','factory')
 

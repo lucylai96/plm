@@ -79,5 +79,9 @@ simdata.losestay = sum((simdata.reward==0 & simdata.action~=state) & ([simdata.a
 % find on trial t, (r = 1 && a == st) && on trial t+1: a ~=st
 simdata.winshift = sum((simdata.reward==1 & simdata.action==state) & ([simdata.action(2:end)~=state(2:end) 0]))/length(state);
 
+% invalid Lose-shift: not rewarded for choosing the better stimulus and subsequently shifted to the alternate stimulus
+% find on trial t, (r = 0 && a == st) && on trial t+1: a ~=st
+%simdata.invloseshift = sum((simdata.reward==0 & simdata.action==state) & ([simdata.action(2:end)~=state(2:end) 0]))/length(state);
+
 %[simdata.state;simdata.action;simdata.reward]
 end
