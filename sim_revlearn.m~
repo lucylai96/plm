@@ -29,21 +29,23 @@ p = ones(1,nA)/2;               % marginal action probabilities
 s = 1; % what state the agent thinks they're in
 a = 1;
 for t = 1:length(state)          % trials
-    st = state(t);
+    a0 = a;
+    s0 = s;
+    st = state(t); 
     d = agent.beta*theta(s,:) + log(p);
     logpolicy = d - logsumexp(d);
     policy = exp(logpolicy);    % softmax policsy
     a = fastrandsample(policy); % action
     
     simdata.state(t) = s;
-    
-    if st == 1
+        
+    if st == 1 
         %r = rand < R1(a);   % reward
         r = R1(a);           % reward
         simdata.corchoice(t) = a == 1;
     else
         %r = rand < R2(a);   % reward
-        r = R2(a);           % reward
+    	r = R2(a);           % reward 
         simdata.corchoice(t) = a == 2;
     end
     
@@ -60,24 +62,25 @@ for t = 1:length(state)          % trials
     rpe = agent.beta*r - V(s) - cost;                             % reward prediction error
     g = agent.beta*(1 - policy(a));                               % policy gradient
     theta(s,a) = theta(s,a) + (agent.lrate_theta)*rpe*g;          % policy parameter update
-    V(s) = V(s) + agent.lrate_V*rpe;
+    V(s) = V(s) + agent.lrate_V*rpe;  
     
     p = p + agent.lrate_p*(policy - p); p = p./nansum(p);         % marginal update
     
     simdata.action(t) = a;
-    simdata.reward(t) = r;
+    simdata.reward(t) = r; 
 end
 
 simdata.trueS = state;
+[simdata.state;simdata.trueS];
 simdata.belief = sum(simdata.state==simdata.trueS)/length(state);
 
-% valid lose-stay: not rewarded for choosing the poorer stimulus and subsequently stayed with the same stimulus;
+% valid lose-stay: not rewarded for choosing the poorer stimulus and subsequently stayed with the same stimulus; 
 % find on trial t, (r = 0 && a ~= st) && on trial t+1 a ~=st
 simdata.losestay = sum((simdata.reward==0 & simdata.action~=state) & ([simdata.action(2:end)~=state(2:end) 0]))/length(state);
 
-% valid win-shift: rewarded for choosing the better stimulus and subsequently shifted to the alternate stimulus.
-% find on trial t, (r = 1 && a == st) && on trial t+1: a ~=st
-simdata.winshift = sum((simdata.reward==1 & simdata.action==state) & ([simdata.action(2:end)~=state(2:end) 0]))/length(state);
+ % valid win-shift: rewarded for choosing the better stimulus and subsequently shifted to the alternate stimulus. 
+    % find on trial t, (r = 1 && a == st) && on trial t+1: a ~=st
+simdata.winshift = (simdata.reward==1 & simdata.action==state) & ([simdata.action~=state(2:end) NaN]);
 
 %[simdata.state;simdata.action;simdata.reward]
 end

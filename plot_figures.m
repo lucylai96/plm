@@ -73,117 +73,62 @@ switch fig
         %         legend({'theory' 'data'},'FontSize',25,'Location','East');
         
         
-        %% state chunking
+        
+        %% perseveration: rule reversal
     case 'fig3'
         
-        agent.lrate_V = 0.1;
-        agent.lrate_p = 0.05;
-        agent.lrate_theta = 0.1;
-        beta = [0.5 1 2]; % capacity constraint
-        for b = 1:length(beta)
-            agent.beta = beta(b);
-            simdata(b) = sim_statechunk(agent);
-        end
         
+        agent.lrate_V = .3;
+        agent.lrate_p = .1;
+        agent.lrate_theta = .3;
+        beta = [0.1 1 1.5 2 3]; % capacity constraint
+        %beta = 1;
+        map = plmColors(length(beta),'b');
         
-        % cost
         figure; hold on;
-        minn = 1;
-        maxx = 0;
-        for i = 1:length(simdata)
-            % learned policy cost for each state (KL divergence between
-            % p(a|s) and p(a)
-            cost = nansum(simdata(i).pas.*log(simdata(i).pas./simdata(i).pa),2);
+        for i = 1:length(beta)
+            subplot 311; hold on;
+            agent.beta = beta(i);
+            simdata(i) = sim_revlearn(agent);
+            pCorr = [reshape(simdata(i).corchoice(simdata(i).trueS==1),simdata(i).tpb,simdata(i).nRevs/2)'; reshape(simdata(i).corchoice(simdata(i).trueS==2),simdata(i).tpb,simdata(i).nRevs/2)'];
+            errorbar(0:simdata(i).tpb-1,mean(pCorr),sem(pCorr,1),'o-','Color',map(i,:),'LineWidth',2)
             
-            subplot(1,length(simdata),i);
-            imagesc(reshape(cost(1:9),3,3))
-            if min(cost(1:9)) < minn
-                minn = min(cost(1:9));
-            end
-            
-            if max(cost(1:9)) > maxx
-                maxx = max(cost(1:9));
-            end
-            
-            title(strcat('\beta=',num2str(beta(i))))
-        end
-        subplot 131
-        caxis([minn maxx])
-        subplot 132
-        caxis([minn maxx])
-        subplot 133
-        caxis([minn maxx])
-        
-        % value
-        figure; hold on;
-        minn = 1;
-        maxx = 0;
-        for i = 1:length(simdata)
-            subplot(1,length(simdata),i);
-            imagesc(reshape(simdata(i).w(1:9),3,3))
-            if min(simdata(i).w(1:9)) < minn
-                minn = min(simdata(i).w(1:9));
-            end
-            
-            if max(simdata(i).w(1:9)) > maxx
-                maxx = max(simdata(i).w(1:9));
-            end
-            
-            title(strcat('\beta=',num2str(beta(i))))
-        end
-        subplot 131
-        caxis([minn maxx])
-        subplot 132
-        caxis([minn maxx])
-        subplot 133
-        caxis([minn maxx])
-        
-        
-        % policy
-        % a = 1, "up"
-        % a = 2, "down"
-        % a = 3, "left"
-        % a = 4, "right"
-        action = {'up','down','left','right'};
-        figure; hold on;
-        for a = 1:4
-            figure; hold on;
-            minn = 10;
-            maxx = -10;
-            for i = 1:length(simdata)
-                subplot(1,length(simdata),i);
-                imagesc(reshape(simdata(i).pas(1:9,a),3,3))
-                
-                if min(simdata(i).pas(1:9,4)) < minn
-                    minn = min(simdata(i).pas(1:9,a));
-                end
-                
-                if max(simdata(i).pas(1:9,4)) > maxx
-                    maxx = max(simdata(i).pas(1:9,a));
-                end
-                
-                %imagesc(reshape(simdata(i).pas(1:9),3,3))
-                %imagesc(reshape(simdata(i).w(1:9),3,3))
-                title(strcat('\beta=',num2str(beta(i))))
-            end
-            subplot 131
-            caxis([minn maxx])
-            subplot 132
-            caxis([minn maxx])
-            subplot 133
-            caxis([minn maxx])
-            c = colorbar;
-            title(c, action{i})
+            subplot 313; hold on;
+            bar(i,simdata(i).belief,'FaceColor',map(i,:))
         end
         
-        simdata(1).action
-        simdata(2).action
-        simdata(3).action
+        subplot 311;
+        l = legend(string(beta));
+        legend('boxoff')
+        title(l,'\beta')
+        axis([0 15 0 1])
+        ylabel('p(Correct)')
+        xlabel('trials after reversal')
+        prettyplot(18)
         
-        why
+        subplot 312;
+        bar([[simdata.losestay];[simdata.losestay]])
+        xticks([1:2])
+        set(gca, 'XTickLabel', {'Lose-Shift','Win-Shift'})
+        ylabel('% of trials')
+        l = legend(string(beta));
+        legend('boxoff')
+        title(l,'\beta')
+        box off;
+         prettyplot(18)
         
+        subplot 313;
+        xticks([1:5])
+        set(gca, 'XTickLabel', num2cell(beta))
+        xlabel('\beta')
+        ylabel('p(true state = belief state)')
+        prettyplot(18)
+        box off;
+        
+        set(gcf, 'Position',  [600, 50, 500, 800])
+        
+        %% state chunking: contextual bandits
     case 'fig4'
-        % contextual bandits
         
         % a = 1 is left, a = 2 is right
         % s = 1 is A, s = 2 is B
@@ -257,7 +202,7 @@ switch fig
         subplot 224; hold on;
         h = bar(beta,dpA2S2,'facecolor',gmap(2,:)); xlabel('\beta'); ylabel('\Delta p(choose A_2|S_2)');
         set(gca, 'XTickLabel', num2cell(beta))
- 
+        
         set(gcf, 'Position',  [100, 100, 800, 400])
         
         exportgraphics(gcf,[pwd '/figures/fig4_ex1.pdf'])
@@ -324,7 +269,132 @@ switch fig
         set(gcf, 'Position',  [100, 100, 700, 300])
         
         % plot([simdata.pa]); legend('S_1','S_2'); ylabel('p(A)')
+        
+        
+        %% state chunking: gridworld
     case 'fig5'
+        
+        agent.lrate_V = 0.1;
+        agent.lrate_p = 0.0;
+        agent.lrate_theta = 0.1;
+        beta = [0.1 1 1.5 1.75 2 2.5]; % capacity constraint
+        for b = 1:length(beta)
+            agent.beta = beta(b);
+            simdata(b) = sim_statechunk(agent);
+        end
+        
+        
+        % cost
+        figure; hold on; colormap(brewermap([],'Reds'))
+        for i = 1:length(simdata)
+            % learned policy cost for each state (KL divergence between
+            % p(a|s) and p(a)
+            subplot(1,length(simdata),i);
+            imagesc(reshape(simdata(i).KL,3,3))
+            title(strcat('\beta=',num2str(beta(i))))
+            axis square
+        end
+        eqcolorbar(1,length(simdata))
+        suptitle('policy cost')
+        set(gcf, 'Position',  [500, 500, 300+100*length(simdata), 200])
+        
+        % value
+        figure; hold on; colormap(brewermap([],'Reds'))
+        for i = 1:length(simdata)
+            subplot(1,length(simdata),i);
+            imagesc(reshape(simdata(i).V,3,3))
+            title(strcat('\beta=',num2str(beta(i))))
+            axis square
+        end
+        eqcolorbar(1,length(simdata))
+        suptitle('value')
+        set(gcf, 'Position',  [500, 500, 300+100*length(simdata), 200])
+        
+        % policy
+        % a = 1, "up"
+        % a = 2, "down"
+        % a = 3, "left"
+        % a = 4, "right"
+        action = {'up','down','left','right'};
+        figure; hold on; colormap(brewermap([],'Reds'))
+        for a = 1:length(action)
+            for i = 1:length(simdata)
+                subplot(length(action),length(simdata),(a-1)*length(simdata)+i);
+                imagesc(reshape(simdata(i).pas(1:9,a),3,3))
+                if i == 1
+                    ylabel(strcat('p(',action{a},')'))
+                end
+                if a == 1
+                    title(strcat('\beta=',num2str(beta(i))))
+                end
+                axis square
+            end
+        end
+        caxis([0 1])
+        eqcolorbar(length(action),length(simdata))
+        suptitle('policy')
+        set(gcf, 'Position',  [600, 50, 300+100*length(simdata), 800])
+        
+        phi = [1 0 0 0 0 0 0 0 0 1 0 0 1;
+            0 1 0 0 0 0 0 0 0 1 0 0 1;
+            0 0 1 0 0 0 0 0 0 1 0 0 1;
+            0 0 0 1 0 0 0 0 0 0 1 0 1;
+            0 0 0 0 1 0 0 0 0 0 1 0 1;
+            0 0 0 0 0 1 0 0 0 0 1 0 1;
+            0 0 0 0 0 0 1 0 0 0 0 1 1;
+            0 0 0 0 0 0 0 1 0 0 0 1 1;
+            0 0 0 0 0 0 0 0 1 0 0 1 1;]';
+        % view weights for chunkings
+        figure; hold on; colormap(brewermap([],'Reds'))
+        action = {'up','down','left','right'};
+        for i = 1:length(simdata)
+            subplot(1,length(simdata),i); hold on;
+            %imagesc(simdata(i).theta);
+            %set(gca,'YDir','reverse')
+            simdata(i).theta(simdata(i).theta<0)=0
+            for s = 1:9
+                idx = find(phi(:,s)==1);
+                if ~isempty(find(simdata(i).theta(idx,:)<0))
+                    [ix,iy]=find(simdata(i).theta<0)
+                end
+                theta = simdata(i).theta(idx,:);
+                [r,b]=find(max(theta))
+                nTheta = theta./nansum(theta(:)); % normalize thetas
+                pChunk(s,:) = nansum(nTheta,2)'; % sum over actions, percentage that chunk c contributes to policy for state s
+                chunks(:,:,s) = nTheta;
+            end
+            
+            barwitherr(sem(pChunk,1),mean(pChunk))
+            title(strcat('\beta=',num2str(beta(i))))
+            ylabel('% \theta contribution to policy')
+            xlabel('chunking')
+            nRew(i) = sum(sum(simdata(i).reward,2)./sum(simdata(i).action~=0,2))/size(simdata(i).action,1); % reward normalized by amount of steps it took
+            pComplex(i) = mean(simdata(i).KL);
+        end
+        equalabscissa(1, length(simdata))
+        set(gcf, 'Position',  [500, 100, 1000, 300])
+        
+        % normalized reward (by number of actions) and policy cost
+        figure; hold on;  rmap = plmColors(length(simdata),'r');
+        for i = 1:length(simdata)
+            %subplot(1,length(simdata),i); hold on;
+            %plot(simdata(i).KL,simdata(i).V,'o','Color',rmap(i,:),'MarkerSize',10)
+            plot(pComplex(i),nRew(i),'.','Color',rmap(i,:),'MarkerSize',50)
+        end
+        
+        ylabel('Average reward')
+        xlabel('Policy complexity')
+        
+        why
+        
+        
+        
+        %% action chunking
+    case 'fig6'
+        
+    case 'fig7'
+        %% navigation
+        
         
         
         
