@@ -24,7 +24,7 @@ set(0, 'DefaultLineLineWidth', 2) % set line width
 set(0,'DefaultLegendAutoUpdate','off')
 set(0,'DefaultAxesBox','off')
 set(0,{'DefaultAxesXColor','DefaultAxesYColor','DefaultAxesZColor'},{'k','k','k'})
-
+set(0,'defaultAxesFontSize',17)
 % fontsize
 if exist('fz')
     set(gca,'FontSize',fz); % make font bigger (input can be font size)

@@ -376,7 +376,7 @@ switch fig
         
         % normalized reward (by number of actions) and policy cost
         rmap = plmColors(length(simdata),'r');
-        figure; hold on;  
+        figure; hold on;
         for i = 1:length(simdata)
             %subplot(1,length(simdata),i); hold on;
             %plot(simdata(i).KL,simdata(i).V,'o','Color',rmap(i,:),'MarkerSize',10)
@@ -394,23 +394,117 @@ switch fig
         % look at the trajectory in the test world
         % normalized reward (by number of actions) and policy cost
         
-%         figure; hold on; colormap(brewermap([],'Reds'))
-%         action = {'up','down','left','right'};
-%         for i = 1:length(test)
-%             subplot(1,length(test),i); hold on;
-%             
-%             nSeq(i,:) = sum(test(i).action~=0,2) % number of actions it took to reach goal
-%             aSeq(i,:) = test(i).state; % action sequence
-%             
-%             nRew(i) = sum(sum(test(i).reward,2)./sum(test(i).action~=0,2))/size(test(i).action,1); % reward normalized by amount of steps it took
-%             pComplex(i) = mean(test(i).KL);
-%         end
+        %         figure; hold on; colormap(brewermap([],'Reds'))
+        %         action = {'up','down','left','right'};
+        %         for i = 1:length(test)
+        %             subplot(1,length(test),i); hold on;
+        %
+        %             nSeq(i,:) = sum(test(i).action~=0,2) % number of actions it took to reach goal
+        %             aSeq(i,:) = test(i).state; % action sequence
+        %
+        %             nRew(i) = sum(sum(test(i).reward,2)./sum(test(i).action~=0,2))/size(test(i).action,1); % reward normalized by amount of steps it took
+        %             pComplex(i) = mean(test(i).KL);
+        %         end
         
         
         
         %% action chunking
     case 'fig6'
         
+        agent.lrate_V = 0.2;
+        agent.lrate_p = 0.01;
+        agent.lrate_theta = 0.2;
+        beta = [0.5 1 1.5 2 2.5]; % capacity constraint
+        %beta = 0.1;
+        agent.test = 1;
+        
+        for b = 1:length(beta)
+            agent.beta = beta(b);
+            simdata(b) = sim_actionchunk(agent);
+            test(b) = simdata(b).test;
+        end
+        
+        figure; hold on;
+        subplot 221; hold on;
+        bar([[simdata.chooseC1];[simdata.chooseA3]]');
+        xticks([1:5])
+        set(gca, 'XTickLabel', num2cell(beta))
+        xlabel('\beta')
+        ylabel('p(choose A|S_3)')
+        legend('C_1','A_3')
+        
+        subplot 222; hold on;
+        bar([test.slips]');
+        xticks([1:5])
+        set(gca, 'XTickLabel', num2cell(beta))
+        xlabel('\beta')
+        ylabel('% Action slips (Test)')
+        
+        subplot 223; hold on;
+        bar([[simdata.rt];[test.rt]]');
+        xticks([1:5])
+        set(gca, 'XTickLabel', num2cell(beta))
+        xlabel('\beta')
+        
+        %plot([[simdata.rt];[test.rt]]')
+        ylabel('Avg RT per trial (a.u.)')
+        legend('train','test')
+        set(gca,'YLim',[0.8 1])
+        
+        
+        bmap = plmColors(length(simdata),'b');
+        subplot 224; hold on;
+        for i = 1:length(beta)
+            plot(simdata(i).chooseC1,simdata(i).rt,'.','Color',bmap(i,:),'MarkerSize',50);
+            
+        end
+        l = legend(string(beta));
+        legend('boxoff')
+        title(l,'\beta')
+        xlabel('p(choose C_1|S_3)')
+        ylabel('Avg RT (a.u.)')
+        
+        
+        %         for i = 1:length(beta)
+        %             bar(i,[mean(simdata(i).reward) mean(test(i).reward)],'FaceColor',bmap(i,:));
+        %         end
+        %         xticks([1:5])
+        %         ylabel('Average reward')
+        %         xticks([1:5])
+        %         set(gca, 'XTickLabel', num2cell(beta))
+        %         xlabel('\beta')
+        %
+        
+        %         for i = 1:length(beta)
+        %             bar(i,[mean(simdata(i).cost) mean(test(i).cost)],'FaceColor',bmap(i,:));
+        %         end
+        %         xticks([1:5])
+        %         ylabel('Cost')
+        %         xticks([1:5])
+        %         set(gca, 'XTickLabel', num2cell(beta))
+        %         xlabel('\beta')
+        
+        
+        figure; hold on;
+        for i = 1:length(beta)
+            plot(mean([simdata(i).KL]),mean([simdata(i).reward]),'.','Color',bmap(i,:),'MarkerSize',50);
+            %plot(simdata(i).cost,simdata(i).reward,'o','Color',bmap(i,:),'MarkerSize',10);
+        end
+        l = legend(string(beta));
+        legend('boxoff')
+        title(l,'\beta')
+        ylabel('Average reward')
+        xlabel('Policy complexity')
+        prettyplot(20)
+        
+        
+        
+        % sum of the rewards in the test should be lower
+        
+        % policy complexity should be lower
+        % reward and complexity
+        
+        why
     case 'fig7'
         %% navigation
         
