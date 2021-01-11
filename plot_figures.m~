@@ -9,7 +9,7 @@ switch fig
     case 'fig2'
         
         % main results
-        if nargin < 2; load results_collins18.mat; end % else...need to run results = analyze_collins.mat
+        load results_collins18.mat; % else...need to run results = analyze_collins.mat
         C = linspecer(2);
         R = squeeze(nanmean(results.R));
         V = squeeze(nanmean(results.V));
@@ -76,8 +76,6 @@ switch fig
         
         %% perseveration: rule reversal
     case 'fig3'
-        
-        
         agent.lrate_V = .3;
         agent.lrate_p = .1;
         agent.lrate_theta = .3;
@@ -127,7 +125,7 @@ switch fig
         set(gcf, 'Position',  [600, 50, 500, 800])
         why
         %% state chunking: contextual bandits
-    case 'fig4'
+    case 'bandit'
         
         % a = 1 is left, a = 2 is right
         % s = 1 is A, s = 2 is B
@@ -142,103 +140,103 @@ switch fig
         agent.lrate_V = 0.1;
         agent.lrate_p = 0.01;
         agent.lrate_theta = 0.1;
-        beta = [0.1 0.5 1 1.5 2]; % capacity constraint
+        beta = [0.1 0.5 1 2 3]; % capacity constraint
+        beta 
+        agent.test = 1;
         
-        %beta = 0:0.5:3;
-        
-        %figure; hold on;
         for i = 1:length(beta)
             agent.beta = beta(i);
-            simdata(i) = sim_bandit(agent);
+            simdata(i) = sim_bandit2(agent);
+            test(i) = simdata(i).test;
+            retrain(i) = simdata(i).retrain;
             
-            % if state chunking, show that p(A2|S1) increases along with p(A2|S2)
-            rev = length(simdata(i).state)/2; % reversal
-            A2S1 = simdata(i).action==2 & simdata(i).state==1;
-            pA2S1(i,:) = [sum(A2S1(1:rev-1)) sum(A2S1(rev:end))]./(rev/2);
+            nTrials = sum(simdata(i).state==1);
+            % if state chunking, show that p(A2|S1) increases during test
+            A2S1.train = [simdata(i).action==2 & simdata(i).state==1];
+            A2S1.test = test(i).action==2;
+            pA2S1(i,:) = [sum(A2S1.train) sum(A2S1.test)]./nTrials;
             dpA2S1(i) = pA2S1(i,2)-pA2S1(i,1);
             
-            A2S2 = simdata(i).action==2 & simdata(i).state==2;
-            pA2S2(i,:) = [sum(A2S2(1:rev-1)) sum(A2S2(rev:end))]./(rev/2);
+            A2S2.train = [simdata(i).action==2 & simdata(i).state==2];
+            A2S2.retrain = retrain(i).action==2;
+            pA2S2(i,:) = [sum(A2S2.train) sum(A2S2.retrain)]./[sum(simdata(i).state==2) length(A2S2.retrain)];
             dpA2S2(i) = pA2S2(i,2)-pA2S2(i,1);
-            
-            %             subplot(1,length(beta),i); hold on;
-            %             var = [simdata(i).pas(:,:,2)-simdata(i).pas(:,:,1)];
-            %             pdiff2(:,:,i) = var;
-            %             imagesc(var)
-            %             set(gca,'YDir','reverse')
-            %             title(strcat('\beta=',num2str(beta(i))))
         end
-        %eqcolorbar(1,length(beta))
-        
         
         bmap = plmColors(length(beta),'b');
         gmap = plmColors(length(beta),'g');
         
+        % p(choose A2) during train and test
         figure; hold on;
         subplot 221; hold on;
-        %ylim([0 0.5])
-        h = bar(beta,pA2S1); xlabel('\beta'); ylabel('p(choose A_2|S_1)');
-        legend('block 1','block 2'); legend('boxoff')
-        set(gca, 'XTickLabel', num2cell(beta))
-        box off
-        set(h(1),'facecolor',bmap(1,:))
-        set(h(2),'facecolor',bmap(3,:))
-        
-        subplot 222; hold on;
-        bar(beta,dpA2S1,'facecolor',bmap(2,:)); xlabel('\beta'); ylabel('\Delta p(choose A_2|S_1)');
-        set(gca, 'XTickLabel', num2cell(beta))
-        
-        
-        subplot 223; hold on;
-        h = bar(beta,pA2S2); xlabel('\beta'); ylabel('p(choose A_2|S_2)');
-        legend('block 1','block 2'); legend('boxoff')
+        h = bar(pA2S2); xlabel('\beta'); ylabel('p(choose A_2|S_2)');
+        legend('Train','Retrain'); legend('boxoff')
+        xticks([1:5])
         set(gca, 'XTickLabel', num2cell(beta))
         set(h(1),'facecolor',gmap(1,:))
         set(h(2),'facecolor',gmap(3,:))
         box off
         
+        subplot 222; hold on;
+        bar(dpA2S2,'FaceColor',gmap(2,:)); xlabel('\beta'); ylabel('\Delta p(choose A_2|S_2)');
+        xticks([1:5])
+        set(gca, 'XTickLabel', num2cell(beta))
+        
+        subplot 223; hold on;
+        h = bar(pA2S1); xlabel('\beta'); ylabel('p(choose A_2|S_1)');
+        legend('Train','Test'); legend('boxoff')
+        set(gca, 'XTickLabel', num2cell(beta))
+        xticks([1:5])
+        box off
+        set(h(1),'facecolor',bmap(1,:))
+        set(h(2),'facecolor',bmap(3,:))
+        
         subplot 224; hold on;
-        h = bar(beta,dpA2S2,'facecolor',gmap(2,:)); xlabel('\beta'); ylabel('\Delta p(choose A_2|S_2)');
+        bar(dpA2S1,'facecolor',bmap(2,:)); xlabel('\beta'); ylabel('\Delta p(choose A_2|S_1)');
+        xticks([1:5])
         set(gca, 'XTickLabel', num2cell(beta))
         
         set(gcf, 'Position',  [100, 100, 800, 400])
         
         exportgraphics(gcf,[pwd '/figures/fig4_ex1.pdf'])
         
-        
+        % policy during train and test
         figure; hold on;
         for i = 1:length(beta)
             subplot 321; hold on;
-            bar(i, simdata(i).pa(rev,:),'k')
+            bar(i, simdata(i).pa,'k')
             ylabel('p(A)');  set(gca, 'XTickLabel', num2cell(beta))
-            title('end of block 1')
+            title('Train')
             
             subplot 322; hold on;
-            bar(i,simdata(i).pa(end,:),'k'); set(gca, 'XTickLabel', num2cell(beta))
-            title('end of block 2')
+            bar(i,test(i).pa,'k'); set(gca, 'XTickLabel', num2cell(beta))
+            title('Test')
             
             subplot 323; hold on;
-            bar(i,simdata(i).pas(1,:,1),'FaceColor', bmap(i,:)); % p(A|S1) block 1
+            bar(i,simdata(i).pas(1,:),'FaceColor', bmap(i,:)); % p(A|S1) train
             set(gca, 'XTickLabel', num2cell(beta))
             ylabel('p(A|S_1)')
             
             subplot 324; hold on;
-            bar(i,simdata(i).pas(1,:,2),'FaceColor', bmap(i,:)); % p(A|S1) block 2
+            bar(i,test(i).pas(1,:),'FaceColor', bmap(i,:)); % p(A|S1) test
             set(gca, 'XTickLabel', num2cell(beta))
             
             subplot 325; hold on;
-            bar(i,simdata(i).pas(2,:,1),'FaceColor', gmap(i,:)); % p(A|S2) block 1
+            bar(i,simdata(i).pas(2,:),'FaceColor', gmap(i,:)); % p(A|S2) train
             set(gca, 'XTickLabel', num2cell(beta))
             ylabel('p(A|S_2)')
             xlabel('\beta')
             
             subplot 326; hold on;
-            bar(i,simdata(i).pas(2,:,2),'FaceColor', gmap(i,:)); % p(A|S2) block 2
+            bar(i,test(i).pas(2,:),'FaceColor', gmap(i,:)); % p(A|S2) test
             set(gca, 'XTickLabel', num2cell(beta))
+            
             xlabel('\beta')
         end
         equalabscissa(3,2)
         set(gcf, 'Position',  [100, 100, 800, 500])
+        
+        % reward complexity
         
         figure; hold on;
         subplot 121; hold on;
@@ -246,170 +244,115 @@ switch fig
             map(:,:,1) = bmap;
             map(:,:,2) = gmap;
             for i = 1:length(beta)
-                plot(simdata(i).KL(s,1),simdata(i).avgrw(s,1),'.','Color',map(i,:,s),'MarkerSize',40)
+                plot(simdata(i).KL(s),simdata(i).V(s),'.','Color',map(i,:,s),'MarkerSize',40)
             end
         end
         ylabel('Average reward')
         xlabel('Policy complexity')
-        title('end of block 1')
+        title('Train')
         
         subplot 122; hold on;
-        for s = 1:2 % 2 states
-            for i = 1:length(beta)
-                plot(simdata(i).KL(s,2),simdata(i).avgrw(s,2),'.','Color',map(i,:,s),'MarkerSize',40)
-            end
+        for i = 1:length(beta)
+            plot(retrain(i).KL(2),retrain(i).V,'.','Color',map(i,:,2),'MarkerSize',40)
+            plot(test(i).KL(1),test(i).V,'.','Color',map(i,:,1),'MarkerSize',40)
         end
         ylabel('Average reward')
         xlabel('Policy complexity')
-        title('end of block 2')
+        title('Test')
         
         equalabscissa(1,2)
         set(gcf, 'Position',  [100, 100, 700, 300])
         
-        % plot([simdata.pa]); legend('S_1','S_2'); ylabel('p(A)')
         
         
-        %% state chunking: gridworld
-    case 'fig5'
-        
-        agent.lrate_V = 0.1;
-        agent.lrate_p = 0.0;
-        agent.lrate_theta = 0.1;
-        beta = [0.1 1 1.5 2]; % capacity constraint
-        
-        agent.test = 1;
-        for b = 1:length(beta)
-            agent.beta = beta(b);
-            simdata(b) = sim_statechunk(agent);
-            test(b) = simdata(b).test;
+        % theta
+        % look at weights
+        for i = 1:length(beta)
+            subplot(1,length(beta),i); hold on;
+            imagesc(simdata(i).theta)
         end
+        eqcolorbar(1,length(beta))
         
-        % cost
-        figure; hold on; colormap(brewermap([],'Reds'))
-        for i = 1:length(simdata)
-            % learned policy cost for each state (KL divergence between
-            % p(a|s) and p(a)
-            subplot(1,length(simdata),i);
-            imagesc(reshape(simdata(i).KL,3,3))
-            title(strcat('\beta=',num2str(beta(i))))
-            axis square
-        end
-        eqcolorbar(1,length(simdata))
-        suptitle('policy cost')
-        set(gcf, 'Position',  [500, 500, 300+100*length(simdata), 200])
-        
-        % value
-        figure; hold on; colormap(brewermap([],'Reds'))
-        for i = 1:length(simdata)
-            subplot(1,length(simdata),i);
-            imagesc(reshape(simdata(i).V,3,3))
-            title(strcat('\beta=',num2str(beta(i))))
-            axis square
-        end
-        eqcolorbar(1,length(simdata))
-        suptitle('value')
-        set(gcf, 'Position',  [500, 500, 300+100*length(simdata), 200])
-        
-        % policy
-        % a = 1, "up"
-        % a = 2, "down"
-        % a = 3, "left"
-        % a = 4, "right"
-        action = {'up','down','left','right'};
-        figure; hold on; colormap(brewermap([],'Reds'))
-        for a = 1:length(action)
-            for i = 1:length(simdata)
-                subplot(length(action),length(simdata),(a-1)*length(simdata)+i);
-                imagesc(reshape(simdata(i).pas(1:9,a),3,3))
-                if i == 1
-                    ylabel(strcat('p(',action{a},')'))
-                end
-                if a == 1
-                    title(strcat('\beta=',num2str(beta(i))))
-                end
-                axis square
-            end
-        end
-        caxis([0 1])
-        eqcolorbar(length(action),length(simdata))
-        suptitle('policy')
-        set(gcf, 'Position',  [600, 50, 300+100*length(simdata), 800])
-        
-        phi = [1 0 0 0 0 0 0 0 0 1 0 0 1;
-            0 1 0 0 0 0 0 0 0 1 0 0 1;
-            0 0 1 0 0 0 0 0 0 1 0 0 1;
-            0 0 0 1 0 0 0 0 0 0 1 0 1;
-            0 0 0 0 1 0 0 0 0 0 1 0 1;
-            0 0 0 0 0 1 0 0 0 0 1 0 1;
-            0 0 0 0 0 0 1 0 0 0 0 1 1;
-            0 0 0 0 0 0 0 1 0 0 0 1 1;
-            0 0 0 0 0 0 0 0 1 0 0 1 1;]';
-        % view weights for chunkings
-        figure; hold on; colormap(brewermap([],'Reds'))
-        action = {'up','down','left','right'};
-        for i = 1:length(simdata)
-            subplot(1,length(simdata),i); hold on;
-            %imagesc(simdata(i).theta);
-            %set(gca,'YDir','reverse')
-            simdata(i).theta(simdata(i).theta<0) = 0;
-            for s = 1:9
+        figure; hold on;
+        phi = [1 0 1;
+            0 1 1]';
+        for i = 1:length(beta)
+            subplot(1,length(beta),i); hold on;
+            test(i).theta(test(i).theta<0) = 0;
+            
+            for s = 1:2
                 idx = find(phi(:,s)==1);
-                if ~isempty(find(simdata(i).theta(idx,:)<0))
-                    [ix,iy]=find(simdata(i).theta<0);
+                if ~isempty(find(test(i).theta(idx,:)<0))
+                    [ix,iy]=find(test(i).theta<0);
                 end
-                theta = simdata(i).theta(idx,:);
-                [r,b]=find(max(theta));
+                theta = test(i).theta(idx,:);
                 nTheta = theta./nansum(theta(:)); % normalize thetas
+                %A2 = nTheta(:,2) - nTheta(:,1);
                 pChunk(s,:) = nansum(nTheta,2)'; % sum over actions, percentage that chunk c contributes to policy for state s
                 chunks(:,:,s) = nTheta;
             end
-            
-            barwitherr(sem(pChunk,1),mean(pChunk))
+            bar(chunks(:,:,1)','stacked') % state 1
+            %bar(chunks(:,:,2),'stacked')
             title(strcat('\beta=',num2str(beta(i))))
             ylabel('% \theta contribution to policy')
-            xlabel('chunking')
-            nRew(i) = sum(sum(simdata(i).reward,2)./sum(simdata(i).action~=0,2))/size(simdata(i).action,1); % reward normalized by amount of steps it took
-            pComplex(i) = mean(simdata(i).KL);
+            xticks([1 2])
+            xlabel('Action')
+            
+            pC2(i) = sum(chunks(2,:,1));%./sum(chunks(:,2,1));
+            
         end
-        equalabscissa(1, length(simdata))
-        set(gcf, 'Position',  [500, 100, 1000, 300])
-        
-        % normalized reward (by number of actions) and policy cost
-        rmap = plmColors(length(simdata),'r');
-        figure; hold on;  
-        for i = 1:length(simdata)
-            %subplot(1,length(simdata),i); hold on;
-            %plot(simdata(i).KL,simdata(i).V,'o','Color',rmap(i,:),'MarkerSize',10)
-            plot(pComplex(i),nRew(i),'.','Color',rmap(i,:),'MarkerSize',50)
-        end
-        l = legend(string(beta));
-        title(l,'\beta')
-        ylabel('Average reward')
-        xlabel('Policy complexity')
-        
-        
+        legend('C1','C2')
+        legend('boxoff')
+        equalabscissa(1,length(beta))
+        set(gcf, 'Position',  [100, 100, 1000, 300])
         why
-        %% test
         
-        % look at the trajectory in the test world
-        % normalized reward (by number of actions) and policy cost
+        figure; hold on;
+        plot(pC2,pA2S1(:,2),'.','Color',bmap(i,:),'MarkerSize',50);
+        xlabel('% chunk C2 (1 state)')
+        ylabel('p(A_2|S_1)')
+        box off
+        %
+        %
+        %         figure; hold on;
+        %         phi = [1 0 1;
+        %             0 1 1]';
+        %         for i = 1:length(beta)
+        %             subplot(1,length(beta),i); hold on;
+        %             simdata(i).theta(simdata(i).theta<0) = 0;
+        %
+        %             for s = 1:2
+        %                 idx = find(phi(:,s)==1);
+        %                 if ~isempty(find(simdata(i).theta(idx,:)<0))
+        %                     [ix,iy]=find(simdata(i).theta<0);
+        %                 end
+        %                 theta = simdata(i).theta(idx,:);
+        %                 nTheta = theta./nansum(theta,1); % normalize thetas
+        %                 %A2 = nTheta(:,2) - nTheta(:,1);
+        %                 pChunk(s,:) = nansum(nTheta,2)'; % sum over actions, percentage that chunk c contributes to policy for state s
+        %                 chunks(:,:,s) = nTheta;
+        %             end
+        %
+        %             bar(pChunk,'stacked')
+        %             %barwitherr(sem(pChunk,1),mean(pChunk))
+        %             title(strcat('\beta=',num2str(beta(i))))
+        %             ylabel('% \theta contribution to policy')
+        %             xticks([1 2])
+        %             xlabel('State')
+        %         end
+        %
+        %         legend('C1','C2')
+        %         legend('boxoff')
+        %         equalabscissa(1,length(beta))
+        %         set(gcf, 'Position',  [100, 100, 1000, 300])
+        %         why
+        %
         
-%         figure; hold on; colormap(brewermap([],'Reds'))
-%         action = {'up','down','left','right'};
-%         for i = 1:length(test)
-%             subplot(1,length(test),i); hold on;
-%             
-%             nSeq(i,:) = sum(test(i).action~=0,2) % number of actions it took to reach goal
-%             aSeq(i,:) = test(i).state; % action sequence
-%             
-%             nRew(i) = sum(sum(test(i).reward,2)./sum(test(i).action~=0,2))/size(test(i).action,1); % reward normalized by amount of steps it took
-%             pComplex(i) = mean(test(i).KL);
-%         end
         
         
         
         %% action chunking
-    case 'fig6'
+    case 'ac'
         
         agent.lrate_V = 0.2;
         agent.lrate_p = 0.01;
@@ -425,92 +368,149 @@ switch fig
         end
         
         figure; hold on;
-        subplot 221; hold on;
+        subplot 231; hold on;
         bar([[simdata.chooseC1];[simdata.chooseA3]]');
         xticks([1:5])
         set(gca, 'XTickLabel', num2cell(beta))
         xlabel('\beta')
         ylabel('p(choose A|S_3)')
-        legend('C_1','A_3')
-    
-        subplot 222; hold on;
+        legend('C_1','A_3','Location','North');
+        legend('boxoff')
+        
+        subplot 232; hold on;
         bar([test.slips]');
         xticks([1:5])
         set(gca, 'XTickLabel', num2cell(beta))
         xlabel('\beta')
         ylabel('% Action slips (Test)')
-
-        subplot 223; hold on;
+        
+        subplot 233; hold on;
         bar([[simdata.rt];[test.rt]]');
         xticks([1:5])
         set(gca, 'XTickLabel', num2cell(beta))
         xlabel('\beta')
-        
-        %plot([[simdata.rt];[test.rt]]')
-        ylabel('Avg RT per trial (a.u.)')
-        legend('train','test')
+        ylabel('Avg RT (a.u.)')
+        legend('train','test','Location','NorthWest');
+        legend('boxoff')
         set(gca,'YLim',[0.8 1])
         
         
         bmap = plmColors(length(simdata),'b');
-        subplot 224; hold on;
-        
-         for i = 1:length(beta)
+        subplot 234; hold on;
+        for i = 1:length(beta)
             plot(simdata(i).chooseC1,simdata(i).rt,'.','Color',bmap(i,:),'MarkerSize',50);
-           
+            
         end
-        l = legend(string(beta));
-        legend('boxoff')
-        title(l,'\beta')
+        %l = legend(string(beta),'Location','North');
+        %legend('boxoff')
+        %title(l,'\beta')
         xlabel('p(choose C_1|S_3)')
         ylabel('Avg RT (a.u.)')
         
         
-%         for i = 1:length(beta)
-%             bar(i,[mean(simdata(i).reward) mean(test(i).reward)],'FaceColor',bmap(i,:));
-%         end
-%         xticks([1:5])
-%         ylabel('Average reward')
-%         xticks([1:5])
-%         set(gca, 'XTickLabel', num2cell(beta))
-%         xlabel('\beta')
-%         
-
-%         for i = 1:length(beta)
-%             bar(i,[mean(simdata(i).cost) mean(test(i).cost)],'FaceColor',bmap(i,:));
-%         end
-%         xticks([1:5])
-%         ylabel('Cost')
-%         xticks([1:5])
-%         set(gca, 'XTickLabel', num2cell(beta))
-%         xlabel('\beta')
+        bmap = plmColors(length(simdata),'b');
+        %figure; hold on;
+        subplot 235; hold on;
+        for i = 1:length(beta)
+            plot(mean([simdata(i).KL]),simdata(i).rt,'.','Color',bmap(i,:),'MarkerSize',50);
+            
+        end
+        xlabel('Policy complexity')
+        ylabel('Avg RT (a.u.)')
         
         
-       figure; hold on;
+        
+        subplot 236; hold on;
         for i = 1:length(beta)
             plot(mean([simdata(i).KL]),mean([simdata(i).reward]),'.','Color',bmap(i,:),'MarkerSize',50);
             %plot(simdata(i).cost,simdata(i).reward,'o','Color',bmap(i,:),'MarkerSize',10);
         end
-        l = legend(string(beta));
+        l = legend(string(beta),'Location','SouthEast');
         legend('boxoff')
         title(l,'\beta')
         ylabel('Average reward')
         xlabel('Policy complexity')
-        prettyplot(20)
+        %prettyplot(20)
+        
+        set(gcf, 'Position',  [500, 100, 1000, 500])
         
         
-        
-        % sum of the rewards in the test should be lower 
+        % sum of the rewards in the test should be lower
         
         % policy complexity should be lower
         % reward and complexity
         
-        why
-    case 'fig7'
+        keyboard
+        exportgraphics(gcf,[pwd '/figures/' fig 'actionchunk.pdf'])
+        
         %% navigation
+    case 'nav'
         
         
+        %% reaction time
+    case 'RT'
         
+        load results_collins14.mat;
+        data = load_data('collins14');
+        C = linspecer(2);   % colors
+        
+        cond = [data.cond];
+        ix = find(cond==1);
+        for s=1:length(ix)
+            for j=2:6
+                rt(s,j-1) = mean(data(ix(s)).rt(data(ix(s)).ns==j));
+            end
+        end
+        
+        [se,m] = wse(rt);
+        errorbar(log(2:6)',m,se,'-k','LineWidth',3)
+        set(gca,'FontSize',25);
+        ylabel('Response time (sec)','FontSize',25);
+        xlabel('Set size (log)','FontSize',25);
+        box off
+        axis square
+        exportgraphics(gcf,[pwd '/figures/' fig '.pdf'])
+        
+        %% entropy
+    case 'entropy'
+        
+        load results_collins14.mat;
+        data = load_data('collins14');
+        cond = [data.cond];
+        ix = find(cond==1);
+        for s=1:length(ix)
+            B = unique(data(s).learningblock);
+            H = zeros(length(B),1);
+            setsize = zeros(length(B),1);
+            for b = 1:length(B)
+                ix = data(s).learningblock==B(b);
+                state = data(s).state(ix);
+                action = data(s).action(ix);
+                ns = data(s).ns(ix); ns = ns(1);
+                p = zeros(ns,3);
+                for i = 1:ns
+                    for a = 1:3
+                        p(i,a) = mean(action(state==i)==a);
+                    end
+                end
+                H(b) = mean(sum(-safelog(p).*p,2));
+                setsize(b) = ns;
+            end
+            
+            for i = 2:6
+                h(s,i-1) = mean(H(setsize==i));
+            end
+        end
+        
+        [se,m] = wse(h);
+        errorbar(2:6,m,se,'-k','LineWidth',3);
+        set(gca,'FontSize',25,'XLim',[1 7],'XTick',2:6);
+        ylabel('H(A|S)','FontSize',25);
+        xlabel('Set size','FontSize',25);
+        box off
+        axis square
+        
+        exportgraphics(gcf,[pwd '/figures/' fig '.pdf'])
         
 end
 
@@ -642,4 +642,150 @@ for ii=1:3
     cmap(:,ii) = pchip(x,cmapp(:,ii),xi);
 end
 cmap = flipud(cmap/255);
+end
+
+
+function dump
+
+
+%% state chunking: gridworld
+
+agent.lrate_V = 0.1;
+agent.lrate_p = 0.0;
+agent.lrate_theta = 0.1;
+beta = [0.1 1 1.5 2]; % capacity constraint
+
+agent.test = 1;
+for b = 1:length(beta)
+    agent.beta = beta(b);
+    simdata(b) = sim_statechunk(agent);
+    test(b) = simdata(b).test;
+end
+
+% cost
+figure; hold on; colormap(brewermap([],'Reds'))
+for i = 1:length(simdata)
+    % learned policy cost for each state (KL divergence between
+    % p(a|s) and p(a)
+    subplot(1,length(simdata),i);
+    imagesc(reshape(simdata(i).KL,3,3))
+    title(strcat('\beta=',num2str(beta(i))))
+    axis square
+end
+eqcolorbar(1,length(simdata))
+suptitle('policy cost')
+set(gcf, 'Position',  [500, 500, 300+100*length(simdata), 200])
+
+% value
+figure; hold on; colormap(brewermap([],'Reds'))
+for i = 1:length(simdata)
+    subplot(1,length(simdata),i);
+    imagesc(reshape(simdata(i).V,3,3))
+    title(strcat('\beta=',num2str(beta(i))))
+    axis square
+end
+eqcolorbar(1,length(simdata))
+suptitle('value')
+set(gcf, 'Position',  [500, 500, 300+100*length(simdata), 200])
+
+% policy
+% a = 1, "up"
+% a = 2, "down"
+% a = 3, "left"
+% a = 4, "right"
+action = {'up','down','left','right'};
+figure; hold on; colormap(brewermap([],'Reds'))
+for a = 1:length(action)
+    for i = 1:length(simdata)
+        subplot(length(action),length(simdata),(a-1)*length(simdata)+i);
+        imagesc(reshape(simdata(i).pas(1:9,a),3,3))
+        if i == 1
+            ylabel(strcat('p(',action{a},')'))
+        end
+        if a == 1
+            title(strcat('\beta=',num2str(beta(i))))
+        end
+        axis square
+    end
+end
+caxis([0 1])
+eqcolorbar(length(action),length(simdata))
+suptitle('policy')
+set(gcf, 'Position',  [600, 50, 300+100*length(simdata), 800])
+
+phi = [1 0 0 0 0 0 0 0 0 1 0 0 1;
+    0 1 0 0 0 0 0 0 0 1 0 0 1;
+    0 0 1 0 0 0 0 0 0 1 0 0 1;
+    0 0 0 1 0 0 0 0 0 0 1 0 1;
+    0 0 0 0 1 0 0 0 0 0 1 0 1;
+    0 0 0 0 0 1 0 0 0 0 1 0 1;
+    0 0 0 0 0 0 1 0 0 0 0 1 1;
+    0 0 0 0 0 0 0 1 0 0 0 1 1;
+    0 0 0 0 0 0 0 0 1 0 0 1 1;]';
+% view weights for chunkings
+figure; hold on; colormap(brewermap([],'Reds'))
+action = {'up','down','left','right'};
+for i = 1:length(simdata)
+    subplot(1,length(simdata),i); hold on;
+    %imagesc(simdata(i).theta);
+    %set(gca,'YDir','reverse')
+    simdata(i).theta(simdata(i).theta<0) = 0;
+    for s = 1:9
+        idx = find(phi(:,s)==1);
+        if ~isempty(find(simdata(i).theta(idx,:)<0))
+            [ix,iy]=find(simdata(i).theta<0);
+        end
+        theta = simdata(i).theta(idx,:);
+        [r,b]=find(max(theta));
+        nTheta = theta./nansum(theta(:)); % normalize thetas
+        pChunk(s,:) = nansum(nTheta,2)'; % sum over actions, percentage that chunk c contributes to policy for state s
+        chunks(:,:,s) = nTheta;
+    end
+    
+    barwitherr(sem(pChunk,1),mean(pChunk))
+    title(strcat('\beta=',num2str(beta(i))))
+    ylabel('% \theta contribution to policy')
+    xlabel('chunking')
+    nRew(i) = sum(sum(simdata(i).reward,2)./sum(simdata(i).action~=0,2))/size(simdata(i).action,1); % reward normalized by amount of steps it took
+    pComplex(i) = mean(simdata(i).KL);
+end
+equalabscissa(1, length(simdata))
+set(gcf, 'Position',  [500, 100, 1000, 300])
+
+% normalized reward (by number of actions) and policy cost
+rmap = plmColors(length(simdata),'r');
+figure; hold on;
+for i = 1:length(simdata)
+    %subplot(1,length(simdata),i); hold on;
+    %plot(simdata(i).KL,simdata(i).V,'o','Color',rmap(i,:),'MarkerSize',10)
+    plot(pComplex(i),nRew(i),'.','Color',rmap(i,:),'MarkerSize',50)
+end
+l = legend(string(beta));
+title(l,'\beta')
+ylabel('Average reward')
+xlabel('Policy complexity')
+
+
+
+
+why
+%% test
+
+% look at the trajectory in the test world
+% normalized reward (by number of actions) and policy cost
+
+%         figure; hold on; colormap(brewermap([],'Reds'))
+%         action = {'up','down','left','right'};
+%         for i = 1:length(test)
+%             subplot(1,length(test),i); hold on;
+%
+%             nSeq(i,:) = sum(test(i).action~=0,2) % number of actions it took to reach goal
+%             aSeq(i,:) = test(i).state; % action sequence
+%
+%             nRew(i) = sum(sum(test(i).reward,2)./sum(test(i).action~=0,2))/size(test(i).action,1); % reward normalized by amount of steps it took
+%             pComplex(i) = mean(test(i).KL);
+%         end
+
+
+
 end

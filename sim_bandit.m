@@ -1,39 +1,35 @@
 function simdata = sim_bandit(agent)
 
-rng(3)
+rng(1)
 % contextual bandits
 
-nS = 2;   % # state features
+nS = 3;   % # state features
 nA = 2;   % # actions
 theta = zeros(nS,nA);                 % policy parameters (13 state-features, 4 actions)
 V = zeros(nS,1);                      % state value weights
 p = ones(1,nA)/nA;                    % marginal action probabilities
-
+nTrials = 50;
 % A B, L R
 %R = [0.8 0.8; 0.2 0.2];
 R = [1 0; 1 0];
+%R = [1 0; 0 1];
 state = 1:2;                     % discretized indices of stimuli
-state = repmat(state, 1, 100);   % stim repeats, there will be rep x 2 trials
+state = repmat(state, 1, nTrials);   % stim repeats, there will be rep x 2 trials
 %state = state(randperm(length(state)));
 
 % 100 trials
 for t = 1:length(state)
     s = state(t);
     
+    phi = zeros(nS,1);
+    phi(s) = 1;
+    phi(3) = 1;
+    
     % policy
-    d = agent.beta*theta(s,:) + log(p);
+    d = agent.beta*(theta'*phi)' + log(p);
     logpolicy = d - logsumexp(d);
     policy = exp(logpolicy);    % softmax policy
     a = fastrandsample(policy); % action
-    
-    if t == length(state)/2
-        %R = [0.8 0.2; 0.2 0.8];  % change reward
-        R = [1 0; 0 1];  % change reward
-        p
-        theta
-        
-        simdata.pas(:,:,1) = exp([agent.beta*(theta) + log(p)] - logsumexp([agent.beta*(theta) + log(p)],2));
-    end
     
     %r = rand < R(s,a);           % reward
     r = R(s,a);
@@ -42,32 +38,123 @@ for t = 1:length(state)
     
     % learning updates
     rpe = agent.beta*r - cost - V(s);                       % reward prediction error
-    g = agent.beta*(1 - policy(a));                         % policy gradient
-    theta(s,a) = theta(s,a) + (agent.lrate_theta)*rpe*g;    % policy parameter update
+    g = agent.beta*phi*(1 - policy(a));                         % policy gradient
+    theta(:,a) = theta(:,a) + (agent.lrate_theta)*rpe*g;    % policy parameter update
     
-    V(s) = V(s) + agent.lrate_V*rpe;
+    V = V + agent.lrate_V*rpe*phi;
     
     p = p + agent.lrate_p*(policy - p); p = p./nansum(p);        % marginal update
     simdata.action(t) = a;
     simdata.reward(t) = r;
     simdata.state(t) = s;
-    simdata.pa(t,:) = p;
     
 end
-p
-theta
 simdata.theta = theta;
+simdata.pa = p;
 
-d = agent.beta*(theta) + log(p);
-logpolicy = d - logsumexp(d,2);
-policy = exp(logpolicy);    % softmax
-simdata.pas(:,:,2) = policy;
+phi = [1 0 1;
+    0 1 1]';
+for i = 1:2
+    d = agent.beta*(theta'*phi(:,i))' + log(p);
+    logpolicy = d - logsumexp(d,2);
+    policy = exp(logpolicy);    % softmax
+    simdata.pas(i,:) = policy;
+end
 
-rev = length(state)/2;
-pa(:,:,1) = simdata.pa(rev,:);
-pa(:,:,2) = simdata.pa(end,:);
-simdata.KL = squeeze(nansum(simdata.pas.*log(simdata.pas./pa),2))'; % KL div for each state (row), before and after reversal (column)
-simdata.avgrw(:,1) = [sum(simdata.state(1:rev-1)==1 & simdata.reward(1:rev-1)==1); sum(simdata.state(1:rev-1)==2 & simdata.reward(1:rev-1)==1)]/length(simdata.state(1:rev-1)==1); % reward after reversal
-simdata.avgrw(:,2) = [sum(simdata.state(rev:end)==1 & simdata.reward(rev:end)==1); sum(simdata.state(rev:end)==2 & simdata.reward(rev:end)==1)]/length(simdata.state(1:rev-1)==1); % reward after reversal
-%[simdata.state;simdata.action;simdata.reward]
+simdata.KL = nansum(simdata.pas.*log(simdata.pas./simdata.pa),2); % KL div for each state (row), before and after reversal (column)
+simdata.V = [sum(simdata.state ==1 & simdata.reward ==1) sum(simdata.state==2 & simdata.reward==1)]/nTrials;
+
+
+if agent.test == 1
+    retrain.state = 2*ones(nTrials);
+    R = [1 0; 0 1];  % change reward
+    
+    phi = [0;1;1];
+    % 50 trials retrain
+    for t = 1:length(retrain.state)
+        s = retrain.state(t);
+        
+        % policy
+        d = agent.beta*(theta'*phi)' + log(p);
+        logpolicy = d - logsumexp(d);
+        policy = exp(logpolicy);    % softmax policy
+        a = fastrandsample(policy); % action
+        
+        %r = rand < R(s,a);           % reward
+        r = R(s,a);
+        
+        cost = logpolicy(a) - log(p(a));                        % policy complexity cost
+        
+        % learning updates
+        rpe = agent.beta*r - cost - V(s);                       % reward prediction error
+        g = agent.beta*phi*(1 - policy(a));                         % policy gradient
+        theta(:,a) = theta(:,a) + (agent.lrate_theta)*rpe*g;    % policy parameter update
+        
+        V = V + agent.lrate_V*rpe*phi;
+        p = p + agent.lrate_p*(policy - p); p = p./nansum(p);        % marginal update
+        simdata.retrain.action(t) = a;
+        simdata.retrain.reward(t) = r;
+        simdata.retrain.state(t) = s;
+        
+    end
+    simdata.retrain.pa = p;
+    theta
+    p
+    phi = [1 0 1;
+        0 1 1]';
+    for i = 1:2
+        d = agent.beta*(theta'*phi(:,i))' + log(p);
+        logpolicy = d - logsumexp(d,2);
+        policy = exp(logpolicy);    % softmax
+        simdata.retrain.pas(i,:) = policy;
+    end
+    simdata.retrain.KL = nansum(simdata.retrain.pas.*log(simdata.retrain.pas./simdata.retrain.pa),2); % KL div for each state (row), before and after reversal (column)
+    simdata.retrain.V = sum(simdata.retrain.reward==1)/length(retrain.state);
+    
+    
+    test.state = ones(1,50);
+    phi = [1;0;1];
+    % 50 trials test
+    for t = 1:length(test.state)
+        
+        s = test.state(t);
+        
+        % policy
+        d = agent.beta*(theta'*phi)' + log(p);
+        logpolicy = d - logsumexp(d);
+        policy = exp(logpolicy);    % softmax policy
+        a = fastrandsample(policy); % action
+        
+        %r = rand < R(s,a);           % reward
+        r = R(s,a);
+        
+        cost = logpolicy(a) - log(p(a));                        % policy complexity cost
+        
+        % learning updates (freeze)
+        %rpe = agent.beta*r - cost - V(s);                       % reward prediction error
+        %g = agent.beta*phi*(1 - policy(a));                         % policy gradient
+        %theta(:,a) = theta(:,a) + (agent.lrate_theta)*rpe*g;    % policy parameter update
+        
+        %V = V + agent.lrate_V*rpe*phi;
+        
+        %p = p + agent.lrate_p*(policy - p); p = p./nansum(p);        % marginal update
+        simdata.test.action(t) = a;
+        simdata.test.reward(t) = r;
+        simdata.test.state(t) = s;
+        
+    end
+    simdata.test.pa = p;
+    simdata.test.theta = theta;
+    
+    phi = [1 0 1;
+        0 1 1]';
+    for i = 1:2
+        d = agent.beta*(theta'*phi(:,i))' + log(p);
+        logpolicy = d - logsumexp(d,2);
+        policy = exp(logpolicy);    % softmax
+        simdata.test.pas(i,:) = policy;
+    end
+    simdata.test.KL = nansum(simdata.test.pas.*log(simdata.test.pas./simdata.test.pa),2); % KL div for each state (row), before and after reversal (column)
+    simdata.test.V = sum(simdata.test.reward ==1)/nTrials;
+    
 end
