@@ -3,17 +3,18 @@ function simdata = sim_bandit(agent)
 rng(1)
 % contextual bandits
 
-nS = 3;   % # state features
+nS = 4;   % # state features
 nA = 2;   % # actions
 theta = zeros(nS,nA);                 % policy parameters (13 state-features, 4 actions)
 V = zeros(nS,1);                      % state value weights
 p = ones(1,nA)/nA;                    % marginal action probabilities
 nTrials = 50;
+bias = [0 0 0];
 % A B, L R
 %R = [0.8 0.8; 0.2 0.2];
-R = [1 0; 1 0];
+R = [1 0; 1 0; 0 1];
 %R = [1 0; 0 1];
-state = 1:2;                     % discretized indices of stimuli
+state = 1:3;                     % discretized indices of stimuli
 state = repmat(state, 1, nTrials);   % stim repeats, there will be rep x 2 trials
 %state = state(randperm(length(state)));
 
@@ -23,7 +24,7 @@ for t = 1:length(state)
     
     phi = zeros(nS,1);
     phi(s) = 1;
-    phi(3) = 1;
+    %phi(4) = bias(s);
     
     % policy
     d = agent.beta*(theta'*phi)' + log(p);
@@ -51,10 +52,12 @@ for t = 1:length(state)
 end
 simdata.theta = theta;
 simdata.pa = p;
+p
 
-phi = [1 0 1;
-    0 1 1]';
-for i = 1:2
+phi = [1 0 0 0;
+    0 1 0 0;
+    0 0 1 0]';
+for i = 1:3
     d = agent.beta*(theta'*phi(:,i))' + log(p);
     logpolicy = d - logsumexp(d,2);
     policy = exp(logpolicy);    % softmax
@@ -62,14 +65,14 @@ for i = 1:2
 end
 
 simdata.KL = nansum(simdata.pas.*log(simdata.pas./simdata.pa),2); % KL div for each state (row), before and after reversal (column)
-simdata.V = [sum(simdata.state ==1 & simdata.reward ==1) sum(simdata.state==2 & simdata.reward==1)]/nTrials;
+simdata.V = [sum(simdata.state ==1 & simdata.reward ==1) sum(simdata.state==2 & simdata.reward==1) sum(simdata.state==3 & simdata.reward==1)]/nTrials;
 
 
 if agent.test == 1
-    retrain.state = 2*ones(nTrials);
-    R = [1 0; 0 1];  % change reward
+    retrain.state = 2*ones(nTrials*2);
+    R = [1 0; 0 1; 0 1];  % change reward
     
-    phi = [0;1;1];
+    phi = [0;1;0;0];
     % 50 trials retrain
     for t = 1:length(retrain.state)
         s = retrain.state(t);
@@ -98,22 +101,26 @@ if agent.test == 1
         
     end
     simdata.retrain.pa = p;
-    theta
     p
-    phi = [1 0 1;
-        0 1 1]';
-    for i = 1:2
+    theta
+    
+    phi = [1 0 0 0;
+        0 1 0 0;
+        0 0 1 0]';
+    for i = 1:3
         d = agent.beta*(theta'*phi(:,i))' + log(p);
         logpolicy = d - logsumexp(d,2);
         policy = exp(logpolicy);    % softmax
         simdata.retrain.pas(i,:) = policy;
     end
+    
+    
     simdata.retrain.KL = nansum(simdata.retrain.pas.*log(simdata.retrain.pas./simdata.retrain.pa),2); % KL div for each state (row), before and after reversal (column)
     simdata.retrain.V = sum(simdata.retrain.reward==1)/length(retrain.state);
     
     
-    test.state = ones(1,50);
-    phi = [1;0;1];
+    test.state = ones(1,nTrials);
+    phi = [1;0;0;0];
     % 50 trials test
     for t = 1:length(test.state)
         
@@ -133,7 +140,7 @@ if agent.test == 1
         % learning updates (freeze)
         %rpe = agent.beta*r - cost - V(s);                       % reward prediction error
         %g = agent.beta*phi*(1 - policy(a));                         % policy gradient
-        %theta(:,a) = theta(:,a) + (agent.lrate_theta)*rpe*g;    % policy parameter update
+        %%theta(:,a) = theta(:,a) + (agent.lrate_theta)*rpe*g;    % policy parameter update
         
         %V = V + agent.lrate_V*rpe*phi;
         
@@ -145,15 +152,17 @@ if agent.test == 1
     end
     simdata.test.pa = p;
     simdata.test.theta = theta;
-    
-    phi = [1 0 1;
-        0 1 1]';
-    for i = 1:2
+   
+    phi = [1 0 0 0;
+        0 1 0 0;
+        0 0 1 0]';
+    for i = 1:3
         d = agent.beta*(theta'*phi(:,i))' + log(p);
         logpolicy = d - logsumexp(d,2);
         policy = exp(logpolicy);    % softmax
         simdata.test.pas(i,:) = policy;
     end
+    simdata.test.pas
     simdata.test.KL = nansum(simdata.test.pas.*log(simdata.test.pas./simdata.test.pa),2); % KL div for each state (row), before and after reversal (column)
     simdata.test.V = sum(simdata.test.reward ==1)/nTrials;
     

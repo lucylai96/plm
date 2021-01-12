@@ -1,4 +1,4 @@
-function simdata = sim_bandit(agent)
+function simdata = sim_bandit0(agent)
 
 rng(1)
 % contextual bandits
@@ -66,15 +66,13 @@ simdata.V = [sum(simdata.state ==1 & simdata.reward ==1) sum(simdata.state==2 & 
 
 
 if agent.test == 1
-    retrain.state = 2*ones(1,nTrials);
+    retrain.state = 2*ones(nTrials);
     R = [1 0; 0 1];  % change reward
+    
+    phi = [0;1;1];
     % 50 trials retrain
     for t = 1:length(retrain.state)
-        
         s = retrain.state(t);
-        phi = zeros(nS,1);
-        phi(2) = 1;
-        phi(3) = 1;
         
         % policy
         d = agent.beta*(theta'*phi)' + log(p);
@@ -101,6 +99,7 @@ if agent.test == 1
     end
     simdata.retrain.pa = p;
     theta
+    p
     phi = [1 0 1;
         0 1 1]';
     for i = 1:2
@@ -113,14 +112,12 @@ if agent.test == 1
     simdata.retrain.V = sum(simdata.retrain.reward==1)/length(retrain.state);
     
     
-    test.state = ones(1,20);
+    test.state = ones(1,50);
     phi = [1;0;1];
     % 50 trials test
     for t = 1:length(test.state)
         
         s = test.state(t);
-        phi(1) = 1;
-        phi(3) = 1;
         
         % policy
         d = agent.beta*(theta'*phi)' + log(p);
@@ -134,13 +131,13 @@ if agent.test == 1
         cost = logpolicy(a) - log(p(a));                        % policy complexity cost
         
         % learning updates (freeze)
-        rpe = agent.beta*r - cost - V(s);                       % reward prediction error
-        g = agent.beta*phi*(1 - policy(a));                         % policy gradient
+        %rpe = agent.beta*r - cost - V(s);                       % reward prediction error
+        %g = agent.beta*phi*(1 - policy(a));                         % policy gradient
         %theta(:,a) = theta(:,a) + (agent.lrate_theta)*rpe*g;    % policy parameter update
         
-        V = V + agent.lrate_V*rpe*phi;
+        %V = V + agent.lrate_V*rpe*phi;
         
-        p = p + agent.lrate_p*(policy - p); p = p./nansum(p);        % marginal update
+        %p = p + agent.lrate_p*(policy - p); p = p./nansum(p);        % marginal update
         simdata.test.action(t) = a;
         simdata.test.reward(t) = r;
         simdata.test.state(t) = s;
