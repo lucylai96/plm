@@ -15,7 +15,7 @@ switch c
         
 end
 
-%set(0, 'DefaultAxesColorOrder', map(3:end,:))
+set(0, 'DefaultAxesColorOrder', map)
 %set(gca,'ColorOrder','factory')
 
 %set(0, 'DefaultLineLineWidth', 2) % set line width

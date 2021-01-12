@@ -6,7 +6,7 @@ prettyplot
 switch fig
     
     %% perseveration: collins 2018
-    case 'fig2'
+    case 'collins18'
         
         % main results
         load results_collins18.mat; % else...need to run results = analyze_collins.mat
@@ -42,7 +42,7 @@ switch fig
             plot(results.R_data(subj(i),1),results.V_data(subj(i),1),'o','Color','k','MarkerSize',15,'LineWidth',3,'MarkerFaceColor',C(1,:));
         end
         
-        exportgraphics(gcf,[pwd '/figures/' fig 'main.pdf'])
+        exportgraphics(gcf,[pwd '/figures/collins18main.pdf'])
         
         for i = 1:length(subj)
             figure; hold on;
@@ -56,46 +56,32 @@ switch fig
             equalabscissa(size(P,1),1)
             xlabel('Action')
             set(gcf, 'Position',  [100, 100, 300, 700])
-            exportgraphics(gcf,[pwd '/figures/fig2_ex' num2str(i) '.pdf'])
+            exportgraphics(gcf,[pwd '/figures/collins18ex' num2str(i) '.pdf'])
             %suptitle(num2str(results.R_data(subj(i),1)))
         end
         
-        % steyvers example
-        %         figure;
-        %         if nargin < 2; load results_steyvers19.mat; end
-        %         C = linspecer(1);
-        %         plot(results.R,results.V,'LineWidth',4,'Color',C);
-        %         hold on;
-        %         plot(results.R_data,results.V_data,'o','MarkerSize',10,'LineWidth',3,'Color',C,'MarkerFaceColor',C);
-        %         set(gca,'FontSize',25);
-        %         xlabel('Policy complexity','FontSize',25);
-        %         ylabel('Average reward','FontSize',25);
-        %         legend({'theory' 'data'},'FontSize',25,'Location','East');
-        
-        
-        
         %% perseveration: rule reversal
-    case 'fig3'
+    case 'reversal'
         agent.lrate_V = .3;
         agent.lrate_p = .1;
         agent.lrate_theta = .3;
         beta = [0.1 1 1.5 2 3]; % capacity constraint
         %beta = 1;
-        map = plmColors(length(beta),'b');
+        map = plmColors(length(beta),'r');
         
         figure; hold on;
         for i = 1:length(beta)
-            subplot 311; hold on;
+            subplot 211; hold on;
             agent.beta = beta(i);
             simdata(i) = sim_revlearn(agent);
             pCorr = [reshape(simdata(i).corchoice(simdata(i).trueS==1),simdata(i).tpb,simdata(i).nRevs/2)'; reshape(simdata(i).corchoice(simdata(i).trueS==2),simdata(i).tpb,simdata(i).nRevs/2)'];
-            errorbar(0:simdata(i).tpb-1,mean(pCorr),sem(pCorr,1),'o-','Color',map(i,:),'LineWidth',2)
+            errorbar(0:simdata(i).tpb-1,mean(pCorr),sem(pCorr,1),'.-','Color',map(i,:),'LineWidth',2,'MarkerSize',30,'CapSize',0)
             
-            subplot 313; hold on;
+            subplot 212; hold on;
             bar(i,simdata(i).belief,'FaceColor',map(i,:))
         end
         
-        subplot 311;
+        subplot 211;
         l = legend(string(beta));
         title(l,'\beta')
         axis([0 15 0 1])
@@ -103,8 +89,21 @@ switch fig
         xlabel('trials after reversal')
         prettyplot(18)
         
-        subplot 312;
-        bar([[simdata.losestay];[simdata.losestay]])
+        subplot 212;
+        xticks([1:5])
+        set(gca, 'XTickLabel', num2cell(beta))
+        xlabel('\beta')
+        ylabel('p(true state = belief state)')
+        prettyplot(18)
+        box off;
+        
+        set(gcf, 'Position',  [600, 50, 500, 400])
+        exportgraphics(gcf,[pwd '/figures/rev.pdf'])
+        
+        
+        map = plmColors(length(beta),'r')
+        figure; hold on;
+        bar([[simdata.losestay];[simdata.winshift]])
         xticks([1:2])
         set(gca, 'XTickLabel', {'Lose-Stay','Win-Shift'})
         ylabel('% of trials')
@@ -114,15 +113,7 @@ switch fig
         box off;
         prettyplot(18)
         
-        subplot 313;
-        xticks([1:5])
-        set(gca, 'XTickLabel', num2cell(beta))
-        xlabel('\beta')
-        ylabel('p(true state = belief state)')
-        prettyplot(18)
-        box off;
-        
-        set(gcf, 'Position',  [600, 50, 500, 800])
+        exportgraphics(gcf,[pwd '/figures/revsz.pdf'])
         why
         %% state chunking: contextual bandits
     case 'sc'
@@ -245,8 +236,8 @@ switch fig
         end
         equalabscissa(4,2)
         set(gcf, 'Position',  [100, 100, 800, 500])
-         exportgraphics(gcf,[pwd '/figures/sc2.pdf'])
-         
+        exportgraphics(gcf,[pwd '/figures/sc2.pdf'])
+        
         % reward complexity
         
         figure; hold on;
@@ -278,52 +269,52 @@ switch fig
         
         % theta
         % look at weights
-%         for i = 1:length(beta)
-%             subplot(1,length(beta),i); hold on;
-%             imagesc(simdata(i).theta)
-%             set(gca,'YDir','reverse')
-%         end
-%         eqcolorbar(1,length(beta))
+        %         for i = 1:length(beta)
+        %             subplot(1,length(beta),i); hold on;
+        %             imagesc(simdata(i).theta)
+        %             set(gca,'YDir','reverse')
+        %         end
+        %         eqcolorbar(1,length(beta))
         
-%         figure; hold on;
-%         phi = [1 0 0 0;
-%             0 1 0 0]';
-%         for i = 1:length(beta)
-%             subplot(1,length(beta),i); hold on;
-%             test(i).theta(test(i).theta<0) = 0;
-%             
-%             for s = 1:2
-%                 idx = find(phi(:,s)==1);
-%                 if ~isempty(find(test(i).theta(idx,:)<0))
-%                     [ix,iy]=find(test(i).theta<0);
-%                 end
-%                 theta = test(i).theta(idx,:);
-%                 nTheta = theta./nansum(theta(:)); % normalize thetas
-%                 %A2 = nTheta(:,2) - nTheta(:,1);
-%                 pChunk(s,:) = nansum(nTheta,2)'; % sum over actions, percentage that chunk c contributes to policy for state s
-%                 chunks(:,:,s) = nTheta;
-%             end
-%             bar(chunks(:,:,1)','stacked') % state 1
-%             %bar(chunks(:,:,2),'stacked')
-%             title(strcat('\beta=',num2str(beta(i))))
-%             ylabel('% \theta contribution to policy')
-%             xticks([1 2])
-%             xlabel('Action')
-%             
-%             pC2(i) = sum(chunks(2,:,1));%./sum(chunks(:,2,1));
-%             
-%         end
-%         legend('C1','C2')
-%         legend('boxoff')
-%         equalabscissa(1,length(beta))
-%         set(gcf, 'Position',  [100, 100, 1000, 300])
-%         why
-%         
-%         figure; hold on;
-%         plot(pC2,pA2S1(:,2),'.','Color',bmap(i,:),'MarkerSize',50);
-%         xlabel('% chunk C2 (1 state)')
-%         ylabel('p(A_2|S_1)')
-%         box off
+        %         figure; hold on;
+        %         phi = [1 0 0 0;
+        %             0 1 0 0]';
+        %         for i = 1:length(beta)
+        %             subplot(1,length(beta),i); hold on;
+        %             test(i).theta(test(i).theta<0) = 0;
+        %
+        %             for s = 1:2
+        %                 idx = find(phi(:,s)==1);
+        %                 if ~isempty(find(test(i).theta(idx,:)<0))
+        %                     [ix,iy]=find(test(i).theta<0);
+        %                 end
+        %                 theta = test(i).theta(idx,:);
+        %                 nTheta = theta./nansum(theta(:)); % normalize thetas
+        %                 %A2 = nTheta(:,2) - nTheta(:,1);
+        %                 pChunk(s,:) = nansum(nTheta,2)'; % sum over actions, percentage that chunk c contributes to policy for state s
+        %                 chunks(:,:,s) = nTheta;
+        %             end
+        %             bar(chunks(:,:,1)','stacked') % state 1
+        %             %bar(chunks(:,:,2),'stacked')
+        %             title(strcat('\beta=',num2str(beta(i))))
+        %             ylabel('% \theta contribution to policy')
+        %             xticks([1 2])
+        %             xlabel('Action')
+        %
+        %             pC2(i) = sum(chunks(2,:,1));%./sum(chunks(:,2,1));
+        %
+        %         end
+        %         legend('C1','C2')
+        %         legend('boxoff')
+        %         equalabscissa(1,length(beta))
+        %         set(gcf, 'Position',  [100, 100, 1000, 300])
+        %         why
+        %
+        %         figure; hold on;
+        %         plot(pC2,pA2S1(:,2),'.','Color',bmap(i,:),'MarkerSize',50);
+        %         xlabel('% chunk C2 (1 state)')
+        %         ylabel('p(A_2|S_1)')
+        %         box off
         %
         %
         %         figure; hold on;
@@ -453,14 +444,12 @@ switch fig
         % reward and complexity
         
         keyboard
-        exportgraphics(gcf,[pwd '/figures/' fig 'actionchunk.pdf'])
+        exportgraphics(gcf,[pwd '/figures/ac.pdf'])
         
-        %% navigation
-    case 'nav'
         
         
         %% reaction time
-    case 'RT'
+    case 'rt'
         
         load results_collins14.mat;
         data = load_data('collins14');
@@ -481,7 +470,7 @@ switch fig
         xlabel('Set size (log)','FontSize',25);
         box off
         axis square
-        exportgraphics(gcf,[pwd '/figures/' fig '.pdf'])
+        exportgraphics(gcf,[pwd '/figures/rt.pdf'])
         
         %% entropy
     case 'entropy'
@@ -522,9 +511,106 @@ switch fig
         box off
         axis square
         
-        exportgraphics(gcf,[pwd '/figures/' fig '.pdf'])
+        exportgraphics(gcf,[pwd '/figures/entropy.pdf'])
+        
+        
+        
+        
+        %% SCZ perseveration: collins 2014
+    case 'collins14'
+        
+        load results_collins14.mat;
+        data = load_data('collins14');
+        
+        figure; hold on;
+        T = {'A' 'B' 'C' 'D' 'E'};
+        R = squeeze(nanmean(results.R));
+        V = squeeze(nanmean(results.V));
+        ylim = [0.25 1.1];
+        xlim = [0 0.9];
+        cond = [data.cond];
+        for j = 1:size(R,2)
+            subplot(2,3,j);
+            h(1) = plot(R(:,j),V(:,j),'-k','LineWidth',4);
+            hold on
+            xlabel('Policy complexity','FontSize',25);
+            ylabel('Average reward','FontSize',25);
+            set(gca,'FontSize',25,'YLim',ylim,'XLim',xlim);
+            for i = 1:2
+                ix = cond==i-1;
+                h(i+1) = plot(results.R_data(ix,j),results.V_data(ix,j),'o','Color',C(i,:),'MarkerSize',10,'LineWidth',3,'MarkerFaceColor',C(i,:));
+            end
+            if j==1
+                legend(h,{'Theory' 'HC' 'SZ'},'FontSize',25,'Location','SouthEast');
+            end
+            mytitle([T{j},')   Set size: ',num2str(j+1)],'Left','FontSize',30,'FontWeight','Bold');
+        end
+        
+        subplot(2,3,6);
+        x = 2:6;
+        for i=1:2
+            [mu,~,ci] = normfit(results.R_data(cond==i-1,:));
+            err = diff(ci)/2;
+            errorbar(x',mu,err,'-o','Color',C(i,:),'MarkerSize',10,'LineWidth',4,'MarkerFaceColor',C(i,:));
+            hold on;
+        end
+        set(gca,'FontSize',25,'XLim',[1.5 6.5],'XTick',2:6);
+        ylabel('Policy complexity','FontSize',25);
+        xlabel('Set size','FontSize',25);
+        mytitle('F)','Left','FontSize',30,'FontWeight','Bold');
+        
+        set(gcf,'Position',[200 200 1200 800])
+        
+        exportgraphics(gcf,[pwd '/figures/collins14main.pdf'])
+        
+        
+        figure; hold on;
+        for i = 1:size(results.bias,2)
+            for j = 1:2
+                [m(i,j),~,ci] = normfit(results.bias(cond==j-1,i));
+                err(i,j) = diff(ci)/2;
+            end
+        end
+        
+        subplot(1,2,1);
+        x = 2:6;
+        for i = 1:2
+            errorbar(x',m(:,i),err(:,i),'-o','Color',C(i,:),'MarkerSize',10,'LineWidth',4,'MarkerFaceColor',C(i,:));
+            hold on;
+        end
+        legend({'HC' 'SZ'},'FontSize',25,'Location','NorthWest');
+        set(gca,'FontSize',25,'XLim',[1.5 6.5],'XTick',2:6);
+        xlabel('Set size','FontSize',25);
+        ylabel('Bias','FontSize',25);
+        mytitle('A)','Left','FontSize',30,'FontWeight','Bold');
+        
+        T = {'HC' 'SZ'};
+        subplot(1,2,2);
+        for j = 1:2
+            y = results.bias(cond==j-1,:);
+            x = results.R_data(cond==j-1,:);
+            plot(x(:),y(:),'o','Color',C(j,:),'MarkerSize',10,'LineWidth',3,'MarkerFaceColor',C(j,:));
+            H = lsline; set(H,'LineWidth',4);
+            hold on;
+            [r,p,rl,ru] = corrcoef(x(:),y(:));
+            disp([T{j},': r = ',num2str(r(2,1)),', p = ',num2str(p(2,1)),', CI = [',num2str(rl(2,1)),',',num2str(ru(2,1)),']']);
+            [r,p] = corr(x(:),y(:),'type','spearman')
+        end
+        mytitle('B)','Left','FontSize',30,'FontWeight','Bold');
+        set(gca,'FontSize',25);
+        xlabel('Policy complexity','FontSize',25);
+        ylabel('Bias','FontSize',25);
+        
+        set(gcf,'Position',[200 200 1200 400])
+        exportgraphics(gcf,[pwd '/figures/collins14bias.pdf'])
+        
+        
+        %% navigation
+    case 'nav'
         
 end
+
+
 
 end
 
