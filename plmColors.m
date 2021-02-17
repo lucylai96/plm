@@ -3,15 +3,19 @@ function map = plmColors(n,c)
 
 switch c
     case 'b'
-        map = colormap(brewermap(n+2,'Blues'));
-        map = map(3:end,:);
+        map = colormap(brewermap(n+1,'Blues'));
+        map = map(2:end,:);
         
     case 'g'
-        map = colormap(brewermap(n+2,'Greens'));
-        map = map(3:end,:);
+        map = colormap(brewermap(n+1,'Greens'));
+        map = map(2:end,:);
     case'r'
-        map = colormap(brewermap(n+2,'Reds'));
-        map = map(3:end,:);
+        map = colormap(brewermap(n+1,'Reds'));
+        map = map(2:end,:);
+        
+    case'k'
+        map = colormap(brewermap(n+1,'Greys'));
+        map = map(2:end,:);
         
 end
 

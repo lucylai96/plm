@@ -20,24 +20,51 @@ for s = 1:length(data)
         state = data(s).state(ix);
         c = data(s).corchoice(ix);
         action = data(s).action(ix);
+        r = data(s).reward(ix);
         err(b) = sum(action ~= c)/length(action);
+        
         R_data(b) = mutual_information(state,action,0.1);
         V_data(b) = mean(data(s).reward(ix));
         
         S = unique(state);
         Q = zeros(length(S),3);
         Ps = zeros(1,length(S));
+        
+        for a = 1:max(action)
+            Pa(a) = mean(action==a); % marginal action probability
+        end
+        
         for i = 1:length(S)
             ii = state==S(i);
             Ps(i) = mean(ii);
             a = c(ii); a = a(1);
             Q(i,a) = 1;
+            
+            for a = 1:max(action)
+                Pas(i,a) = mean(action(state==i)==a); % conditioned on state
+            end
+            
+            % errors
+            sta = state(state==i);
+            act = action(state==i);
+            cor = c(state==i);
+            rew = r(state==i);
+            err_s(b,i) = sum(act~=cor)/length(act); % by block AND state
+            V_data_s(i) = mean(rew);
         end
+        R_data_s = nansum(Pas.*log(Pas./Pa),2)'; % KL divergence for each state
         
         [R(b,:),V(b,:)] = blahut_arimoto(Ps,Q,beta);
         
+        % compute bias (subj x stimulus x set size)
+        Vd3 =  interp1(R(b,:),V(b,:),R_data(b));
+        bias_s(b,1:length(S)) = (Vd3 - V_data_s); % bias is per subject x stim x set size (85 x 6 x 5)
+
+        
         setsize(b) = length(S)-1;
         
+        clear Pa Pas 
+        clear V_data_s R_data_s
     end
     
     for c = 1:max(setsize)
@@ -45,22 +72,24 @@ for s = 1:length(data)
         results.V(s,:,c) = nanmean(V(setsize==c,:));
         results.R_data(s,c) = nanmean(R_data(setsize==c));
         results.V_data(s,c) = nanmean(V_data(setsize==c));
-        results.err(s,c) = mean(err(setsize==c));
+        results.err(s,c) = nanmean(err(setsize==c));
+        results.err_s(s,:,c) = squeeze(nanmean(err_s(setsize==c,:)));
+        results.bias_s(s,:,c) = squeeze(nanmean(bias_s(setsize==c,:)));
     end
     
-    clear R V
+     clear R V
+     clear bias_s err_s
     
 end
 
-% compute bias
-R = squeeze(nanmean(results.R));
+% compute bias (subj x set size)
+R = squeeze(nanmean(results.R)); % avg over subjects
 V = squeeze(nanmean(results.V));
 for c = 1:max(setsize)
     Vd2(:,c) =  interp1(R(:,c),V(:,c),results.R_data(:,c));
     results.bias(:,c) = Vd2(:,c) - results.V_data(:,c); % bias is per subject x set size (85 x 5)
     results.V_interp(:,c) = Vd2(:,c);
 end
-
 
 % prettystuff
 figure; hold on;

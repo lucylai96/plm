@@ -7,6 +7,7 @@ if nargin < 1
 end
 
 beta = linspace(0.1,15,50);
+beta = [linspace(0.1,3,100) linspace(3.1,15,20)];
 
 for s = 1:length(data)
     B = unique(data(s).learningblock);

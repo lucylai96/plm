@@ -4,8 +4,32 @@ close all
 prettyplot
 
 switch fig
-    
-    %% perseveration: collins 2018
+    case 'tradeoff'
+        data = load_data('collins18');
+        results = analyze_collins(data);
+        R = squeeze(nanmean(results.R));
+        V = squeeze(nanmean(results.V));
+        
+        p = plot(R(:,2),V(:,2), 'LineWidth',5);
+        n = length(R(:,2));
+        cd = [uint8(plmColors(n,'g')*255) uint8(ones(n,1))]';
+        
+        drawnow
+        set(p.Edge, 'ColorBinding','interpolated', 'ColorData',cd)
+        %c = colorbar;
+        %caxis([0 15]);
+        %title(c,'\beta')
+        box off
+        %xlabel('Policy complexity (or rate)');
+        %ylabel('Average reward (or negative distortion)');
+        ylim = [0 1.1];
+        xlim = [0 1.1];
+        set(gca,'YLim',ylim,'XLim',xlim);
+        axis square
+        exportgraphics(gcf,[pwd '/figures/tradeoff.png'])
+        exportgraphics(gcf,[pwd '/figures/tradeoff.pdf'])
+        
+        %% perseveration: collins 2018
     case 'collins18'
         
         % main results
@@ -50,12 +74,12 @@ switch fig
             for p = 1:size(P,1)
                 subplot(size(P,1),1,p); hold on;
                 bar(P(p,:),'FaceColor','k');
-                if p >1 
-                    ylabel(strcat('p(a|s_',num2str(p-1),')')); 
-                    title(num2str(ex_subj(i).KL(p-1,:))); 
+                if p >1
+                    ylabel(strcat('p(a|s_',num2str(p-1),')'));
+                    title(num2str(ex_subj(i).KL(p-1,:)));
                 else
-                    ylabel('p(a)'); 
-                    title(num2str(mean(ex_subj(i).KL))); 
+                    ylabel('p(a)');
+                    title(num2str(mean(ex_subj(i).KL)));
                 end
                 axis([0.3 3.7 0 1])
             end
@@ -95,13 +119,13 @@ switch fig
         xlabel('Trials after reversal')
         prettyplot(18)
         
-%         subplot 212;
-%         xticks([1:5])
-%         set(gca, 'XTickLabel', num2cell(beta))
-%         xlabel('\beta')
-%         ylabel('p(true state = belief state)')
-%         prettyplot(18)
-%         box off;
+        %         subplot 212;
+        %         xticks([1:5])
+        %         set(gca, 'XTickLabel', num2cell(beta))
+        %         xlabel('\beta')
+        %         ylabel('p(true state = belief state)')
+        %         prettyplot(18)
+        %         box off;
         
         set(gcf, 'Position',  [500, 50, 500, 200])
         exportgraphics(gcf,[pwd '/figures/rev.pdf'])
@@ -596,7 +620,7 @@ switch fig
         xlabel('Set size');
         ylabel('Bias');
         
-      
+        
         T = {'HC' 'SZ'};
         subplot(1,2,2);
         for j = 1:2
@@ -617,9 +641,123 @@ switch fig
         exportgraphics(gcf,[pwd '/figures/collins14bias.pdf'])
         
         
-        %% navigation
-    case 'nav'
+        % errors by set size
+        bcol = plmColors(5,'b');
+        set(0, 'DefaultAxesColorOrder',colormap(bcol))
+        T = {'HC' 'SZ'};
+        figure; hold on; prettyplot;
+        for j = 1:2
+            subplot(1,2,j); hold on;
+            x = results.err(cond==j-1,:);
+            y = results.bias(cond==j-1,:);
+            plot(x, y,'.','MarkerSize',30); % errors vs bias away from the curve
+            
+            xlabel('% Errors');
+            ylabel('Bias');
+            title(T{j})
+        end
+        l = legend('2','3','4','5','6');
+        title(l,'Set size')
+        equalabscissa(1,2)
         
+        % errors by state and set size
+        gcol = plmColors(6,'g');
+        for j = 1:size(R,2)
+            for i = 1:2
+                ix = cond==i-1;
+                figure (100+i); hold on;
+                subplot(2,3,j); hold on;
+                set(0, 'DefaultAxesColorOrder',colormap(gcol))
+                x = results.err_s(:,:,j);
+                y = results.bias_s(:,:,j);
+                x(x==0) = NaN;
+                y(y==0) = NaN;
+                plot(x(ix,:),y(ix,:),'.','MarkerSize',20);
+                title(strcat('Set size = ',num2str(j+1)));
+                
+                if j==1
+                    l = legend('1','2','3','4','5','6');
+                    title(l,'Stimulus');
+                    legend('boxoff')
+                elseif j==4
+                    xlabel('% Errors')
+                    ylabel('Bias')
+                end
+            end
+        end
+        
+        figure (102);
+        
+        
+        % Q: is a particular subject more biased on a particular state than
+        % others?
+        
+        %s = subplot(2,3,6);
+        %set(s, 'DefaultAxesColorOrder',colormap(bcol))
+        %xx = results.err(cond==0,:);
+        %yy = results.bias(cond==0,:);
+        %plot(xx, yy,'.','MarkerSize',30); % errors vs bias away from the curve
+        
+        box off
+        l = legend('2','3','4','5','6');
+        title(l,'Set size');
+        legend('boxoff')
+        equalabscissa(2,3)
+        
+        figure (101);
+        bcol = plmColors(5,'b');
+        
+        %s = subplot(2,3,6);
+        %set(s, 'DefaultAxesColorOrder',colormap(bcol))
+        %xx = results.err(cond==1,:);
+        %yy = results.bias(cond==1,:);
+        %plot(xx, yy,'.','MarkerSize',30); % errors vs bias away from the curve
+        
+        box off
+        l = legend('2','3','4','5','6');
+        title(l,'Set size');
+        legend('boxoff')
+        equalabscissa(2,3)
+        
+        why
+        
+        
+        bcol = plmColors(6,'b');
+        set(0, 'DefaultAxesColorOrder',colormap(bcol))
+        for j = 1:size(R,2)
+            bias = squeeze(results.bias_s(:,:,j));
+            bias(bias==0)= NaN;
+            resid(:,:,j) = results.bias(:,j)-bias;
+            for i = 1:2
+                ix = cond==i-1;
+                figure(200+i); hold on;
+                subplot(2,3,j); hold on;
+                plot(results.bias(ix,j),resid(ix,:,j),'.','Markersize',20);
+                plot([0 0.4],[0 0],'k--','LineWIdth',2)
+                clear bias
+                %axis equal
+                %dline
+            end
+        end
+        figure(201)
+        subplot 234
+        xlabel('Avg bias')
+        ylabel('Residual bias')
+           l = legend('1','2','3','4','5','6');
+                    title(l,'Stimulus');
+                    legend('boxoff')
+        suptitle('HC')
+        
+        %equalabscissa(2,3)
+        
+        figure(202)
+        subplot 234
+        xlabel('Avg bias')
+        ylabel('Residual bias')
+           l = legend('1','2','3','4','5','6');
+                    title(l,'Stimulus');
+                    legend('boxoff')
+        suptitle('SZ')
 end
 
 

@@ -1,4 +1,4 @@
-function sim_lak
+function lak
 %% lak
 % simulate decision making trials with conditions L [100:0, 80:20, 65:35, 55:45, 45:55, 35:65, 20:80 and 0:100] R,
 % stimuli features are the decision confidences
